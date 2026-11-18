@@ -20,7 +20,13 @@
     const name = nameOf(ref);
     div.append(codicon(icon), el('span', 'name', name.substring(name.lastIndexOf('/') + 1)));
     const track = trackOf(ref);
-    if (track) div.append(el('span', 'description', track));
+    if (ref.gone) div.append(el('span', 'description', track));
+    else if (track) {
+      const counts = el('span', 'description track');
+      if (ref.ahead) counts.append(codicon('arrow-up'), String(ref.ahead));
+      if (ref.behind) counts.append(codicon('arrow-down'), String(ref.behind));
+      div.append(counts);
+    }
     div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
     div.addEventListener('click', () => {
@@ -31,7 +37,7 @@
     return div;
   }
 
-  // "↑1 ↓2" against the upstream, as the status bar shows it
+  // "↑1 ↓2" against the upstream, as the status bar shows it (the row draws it with arrow icons; this is the tooltip)
   function trackOf(ref) {
     if (ref.gone) return 'upstream gone';
     return [ref.ahead ? `↑${ref.ahead}` : '', ref.behind ? `↓${ref.behind}` : ''].filter(Boolean).join(' ');

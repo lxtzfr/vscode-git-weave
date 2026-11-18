@@ -52,6 +52,21 @@ body {
   color: var(--vscode-descriptionForeground);
 }
 
+/* Ahead / behind: arrow icon then count, side by side */
+.tree-row .description.track {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.tree-row .description.track .codicon {
+  font-size: 12px;
+}
+
+.tree-row .description.track .codicon:not(:first-child) {
+  margin-left: 4px;
+}
+
 .tree-row .letter {
   margin-left: auto;
   padding-left: 8px;
