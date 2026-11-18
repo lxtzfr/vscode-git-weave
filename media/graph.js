@@ -410,7 +410,14 @@
   scroller.addEventListener('keydown', onKey);
   new ResizeObserver(() => render()).observe(scroller);
 
-  changes.init((msg) => vscode.postMessage(msg));
+  changes.init((msg) => vscode.postMessage(msg), {
+    asTree: state.filesAsTree !== false,
+    set(asTree) {
+      this.asTree = asTree;
+      state.filesAsTree = asTree;
+      saveState();
+    },
+  });
   splitter();
   renderHeader();
   applyColumns();

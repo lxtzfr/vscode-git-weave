@@ -11,7 +11,7 @@
   const reposToggle = document.getElementById('repos-toggle');
   const reposList = document.getElementById('repos-list');
   const branchesEl = document.getElementById('branches');
-  const state = Object.assign({ collapsed: ['§tags'], selectedKey: undefined, reposOpen: false }, vscode.getState());
+  const state = Object.assign({ collapsed: ['§tags'], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
   const collapsed = new Set(state.collapsed);
   let data; // { repos: [{ root, name, branch, selected }], groups: [{ root, name, refs, worktrees, stashes, changes }] }
   const post = (msg) => vscode.postMessage(msg);
@@ -25,6 +25,14 @@
     reveal: (hash, root) => post({ type: 'reveal', hash, root }),
     stash: (stash) => post({ type: 'stash', stash }),
     isSelected: (key) => key === state.selectedKey,
+    // The changes' tree / list layout, and what their folder rows need (the collapsed set, a re-render).
+    filesAsTree: () => state.filesAsTree,
+    toggleFilesLayout: () => {
+      state.filesAsTree = !state.filesAsTree;
+      changed();
+    },
+    collapsed,
+    changed: () => changed(),
     select: (key) => {
       state.selectedKey = key;
       saveState();

@@ -10,9 +10,11 @@
   let current; // { rows, files }
   let selectedPath;
   let post;
+  let layout; // { asTree, set(asTree) }: the tree / list choice, saved by the graph's state
 
-  function init(postMessage) {
+  function init(postMessage, layoutState) {
     post = postMessage;
+    layout = layoutState;
     clear();
   }
 
@@ -41,19 +43,30 @@
   function renderFiles() {
     const { files, rows } = current;
     const commits = rows.length > 1 ? ` in ${rows.length} commits` : '';
-    const title = el('div', 'pane-title', `${files.length} file${files.length === 1 ? '' : 's'} changed${commits}`);
+    const title = el('div', 'pane-title');
+    const toggle = fileRows.layoutButton(layout.asTree, () => {
+      layout.set(!layout.asTree);
+      renderFiles();
+    });
+    title.append(el('span', 'name', `${files.length} file${files.length === 1 ? '' : 's'} changed${commits}`), toggle);
     const list = el('div', 'tree');
     // Several repositories: their files under a folder named after each (WebStorm's grouping by root).
     const pathOf = (file) => (file.repoName ? `${file.repoName}/${file.path}` : file.path);
-    for (const row of tree.flatten(tree.build(files, pathOf), collapsed, pathOf)) {
-      list.append(row.folder ? tree.folderRow(row, collapsed, renderFiles) : fileRow(row));
+    if (layout.asTree) {
+      for (const row of tree.flatten(tree.build(files, pathOf), collapsed, pathOf)) {
+        list.append(row.folder ? tree.folderRow(row, collapsed, renderFiles) : fileRow(row));
+      }
+    } else {
+      for (const file of [...files].sort((a, b) => pathOf(a).localeCompare(pathOf(b)))) list.append(fileRow({ item: file, depth: 0 }, true));
     }
     filesEl.replaceChildren(title, list);
   }
 
-  function fileRow({ item: file, depth }) {
+  // folder: the list layout shows each file's folder as its description.
+  function fileRow({ item: file, depth }, folder = false) {
     return fileRows.row(file, {
       depth,
+      folder,
       selected: `${file.root}\n${file.path}` === selectedPath,
       onClick: () => {
         selectedPath = `${file.root}\n${file.path}`;

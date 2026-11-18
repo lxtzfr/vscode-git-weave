@@ -1,6 +1,6 @@
 // Changed-file row, shared by the graph's right pane (changes.js) and the sidebar's changes (workingTree.js).
 (function () {
-  const { el, codicon, menuContext } = window.dom;
+  const { el, codicon, menuContext, actionButton } = window.dom;
   const { tree } = window;
   // Same letters as the Source Control view; colors in common.css (gitDecoration.*).
   const STATUS = {
@@ -33,5 +33,13 @@
     return div;
   }
 
-  window.files = { row };
+  // The Source Control view's "View as Tree / List" button: its icon is the layout it switches to.
+  function layoutButton(asTree, onToggle) {
+    return actionButton(asTree ? 'list-flat' : 'list-tree', asTree ? 'View as List' : 'View as Tree', onToggle);
+  }
+
+  // Flat layout order: by path, as a list of full paths reads.
+  const byPath = (a, b) => a.path.localeCompare(b.path);
+
+  window.files = { row, layoutButton, byPath };
 })();

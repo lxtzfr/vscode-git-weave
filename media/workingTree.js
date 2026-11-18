@@ -1,9 +1,10 @@
 // Uncommitted changes of the sidebar view (sidebar.js), as the Source Control view groups them, from
-// workingChanges.js's loadChanges: the commit box, then Merge / Staged / Changes, one row per file.
+// workingChanges.js's loadChanges: the commit box, then Merge / Staged / Changes, one row per file (a list or a
+// folder tree, toggled by the section's button).
 // Click: its diff; hover buttons and right-click: stage, unstage, discard (package.json webview/context).
 (function () {
   const { actionButton } = window.dom;
-  const { files } = window;
+  const { files, tree } = window;
   const message = document.getElementById('message');
   const commitButton = document.getElementById('commit-button');
   const MESSAGE_DELAY_MS = 300;
@@ -73,12 +74,22 @@
     for (const group of GROUPS) {
       const menu = { webviewSection: 'changes', changeGroup: group.id };
       const actions = group.actions.map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.changes.${cmd}`, menu)));
-      const fill = (o, g, key, depth) => g.changes[group.id].forEach((file) => o.push(fileRow(file, depth)));
+      actions.unshift(files.layoutButton(api.filesAsTree(), api.toggleFilesLayout));
+      const fill = (o, g, key, depth) => fillFiles(o, g.changes[group.id], key, depth);
       bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty });
     }
   }
 
-  function fileRow(file, depth) {
+  // A group's files as a folder tree, or as a list sorted by path (each file's folder as its description).
+  // key: the folders' collapsed-set prefix, so each group and repository collapses its own.
+  function fillFiles(out, list, key, depth) {
+    if (!api.filesAsTree()) return [...list].sort(files.byPath).forEach((file) => out.push(fileRow(file, depth, true)));
+    for (const row of tree.flatten(tree.build(list, (f) => f.path), api.collapsed, (f) => f.path, depth, key)) {
+      out.push(row.folder ? tree.folderRow(row, api.collapsed, api.changed) : fileRow(row.item, row.depth, false));
+    }
+  }
+
+  function fileRow(file, depth, folder) {
     const key = `change:${file.root}:${file.group}:${file.path}`;
     const context = { changeGroup: file.group };
     const ctx = { file, root: file.root, ...context };
@@ -87,7 +98,7 @@
       .map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.${cmd}`, ctx)));
     return files.row(file, {
       depth,
-      folder: true,
+      folder,
       selected: api.isSelected(key),
       context,
       actions,
