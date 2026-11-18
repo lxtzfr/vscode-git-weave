@@ -1,0 +1,113 @@
+/* Shared by the graph and the sidebar webviews */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--page-background, var(--vscode-editor-background));
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding-right: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tree-row:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.tree-row.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.tree-row .codicon {
+  flex: none;
+  font-size: 16px;
+}
+
+.tree-row .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-row .description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tree-row .letter {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 12px;
+}
+
+
+.tree-row.section {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tree-row.ref.current .name,
+.tree-row.worktree.current .name {
+  font-weight: 600;
+}
+
+/* Inline actions, shown on hover as in native trees */
+.tree-row .spacer {
+  flex: 1;
+}
+
+.tree-row .action {
+  flex: none;
+  display: none;
+  padding: 2px;
+  border-radius: 3px;
+  font-size: 16px;
+  color: var(--vscode-icon-foreground);
+}
+
+.tree-row:hover .action,
+.tree-row.selected .action {
+  display: block;
+}
+
+.tree-row .action:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+
+.placeholder {
+  padding: 10px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.placeholder.error {
+  color: var(--vscode-errorForeground);
+}
+
+/* Same colors as the Source Control view (gitDecoration.*) */
+.file.added { color: var(--vscode-gitDecoration-addedResourceForeground); }
+.file.modified { color: var(--vscode-gitDecoration-modifiedResourceForeground); }
+.file.deleted { color: var(--vscode-gitDecoration-deletedResourceForeground); }
+.file.renamed { color: var(--vscode-gitDecoration-renamedResourceForeground); }
+.file.untracked { color: var(--vscode-gitDecoration-untrackedResourceForeground); }
+.file.conflict { color: var(--vscode-gitDecoration-conflictingResourceForeground); }
+.file.deleted .name { text-decoration: line-through; }

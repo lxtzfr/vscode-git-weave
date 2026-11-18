@@ -1,0 +1,508 @@
+{
+  "name": "git-weave",
+  "displayName": "Git Weave",
+  "description": "Source Control and commit graph in one place: several repositories side by side, branches, worktrees, stashes.",
+  "version": "0.0.1",
+  "publisher": "lxtzfr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lxtzfr/vscode-git-weave"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Visualization"
+  ],
+  "keywords": [
+    "git",
+    "graph",
+    "source control",
+    "branches",
+    "worktree",
+    "stash"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onWebviewPanel:gitWeave.graph"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitWeave.branches.checkout",
+        "title": "Checkout Branch"
+      },
+      {
+        "command": "gitWeave.branches.delete",
+        "title": "Delete Branch"
+      },
+      {
+        "command": "gitWeave.branches.createFrom",
+        "title": "Create Branch From..."
+      },
+      {
+        "command": "gitWeave.branches.push",
+        "title": "Push Branch"
+      },
+      {
+        "command": "gitWeave.branches.rename",
+        "title": "Rename Branch"
+      },
+      {
+        "command": "gitWeave.branches.merge",
+        "title": "Merge into Current Branch"
+      },
+      {
+        "command": "gitWeave.branches.copyName",
+        "title": "Copy Branch Name"
+      },
+      {
+        "command": "gitWeave.worktrees.create",
+        "title": "Create Worktree..."
+      },
+      {
+        "command": "gitWeave.worktrees.openNewWindow",
+        "title": "Open in New Window"
+      },
+      {
+        "command": "gitWeave.worktrees.open",
+        "title": "Open in Current Window"
+      },
+      {
+        "command": "gitWeave.worktrees.copyPath",
+        "title": "Copy Path"
+      },
+      {
+        "command": "gitWeave.worktrees.reveal",
+        "title": "Reveal in File Explorer"
+      },
+      {
+        "command": "gitWeave.worktrees.delete",
+        "title": "Delete Worktree"
+      },
+      {
+        "command": "gitWeave.worktrees.openIssue",
+        "title": "Open Ticket"
+      },
+      {
+        "command": "gitWeave.stashes.apply",
+        "title": "Apply Stash"
+      },
+      {
+        "command": "gitWeave.stashes.pop",
+        "title": "Pop Stash"
+      },
+      {
+        "command": "gitWeave.stashes.drop",
+        "title": "Drop Stash"
+      },
+      {
+        "command": "gitWeave.graph.open",
+        "title": "Open Graph",
+        "category": "Git Weave",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "gitWeave.graph.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gitWeave.graph.copySha",
+        "title": "Copy Commit SHA"
+      },
+      {
+        "command": "gitWeave.graph.openDiff",
+        "title": "Open Changes"
+      },
+      {
+        "command": "gitWeave.graph.openFile",
+        "title": "Open File at Revision"
+      },
+      {
+        "command": "gitWeave.graph.copyPath",
+        "title": "Copy Relative Path"
+      },
+      {
+        "command": "gitWeave.branches.deleteTag",
+        "title": "Delete Tag"
+      },
+      {
+        "command": "gitWeave.stashes.create",
+        "title": "Stash Changes…"
+      },
+      {
+        "command": "gitWeave.stashes.createUntracked",
+        "title": "Stash Changes (Include Untracked)…"
+      },
+      {
+        "command": "gitWeave.changes.stage",
+        "title": "Stage Changes"
+      },
+      {
+        "command": "gitWeave.changes.unstage",
+        "title": "Unstage Changes"
+      },
+      {
+        "command": "gitWeave.changes.discard",
+        "title": "Discard Changes"
+      },
+      {
+        "command": "gitWeave.changes.stageAll",
+        "title": "Stage All Changes"
+      },
+      {
+        "command": "gitWeave.changes.unstageAll",
+        "title": "Unstage All Changes"
+      },
+      {
+        "command": "gitWeave.changes.discardAll",
+        "title": "Discard All Changes"
+      },
+      {
+        "command": "gitWeave.graph.toggle",
+        "title": "Toggle Graph",
+        "category": "Git Weave",
+        "icon": "$(git-merge)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "gitWeave.graph.open",
+          "when": "view == gitWeave.sidebar",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitWeave.graph.refresh",
+          "when": "view == gitWeave.sidebar",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "gitWeave.branches.checkout",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.delete",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.openNewWindow",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.open",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.reveal",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.delete",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.create",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.worktrees.openIssue",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.copyName",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.merge",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.rename",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.push",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.createFrom",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.stashes.apply",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.stashes.pop",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.stashes.drop",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.graph.refresh",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.graph.copySha",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.graph.openDiff",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.graph.openFile",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.graph.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.branches.deleteTag",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.stashes.create",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.stashes.createUntracked",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.stage",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.unstage",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.discard",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.stageAll",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.unstageAll",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.changes.discardAll",
+          "when": "false"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gitWeave.graph.open",
+          "group": "navigation@9"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "gitWeave.branches.checkout",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection =~ /^(localBranch|remoteBranch)$/ && !isCurrent",
+          "group": "1_checkout"
+        },
+        {
+          "command": "gitWeave.branches.merge",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection =~ /^(localBranch|remoteBranch)$/ && !isCurrent",
+          "group": "2_merge"
+        },
+        {
+          "command": "gitWeave.branches.createFrom",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection =~ /^(localBranch|remoteBranch)$/",
+          "group": "3_create@1"
+        },
+        {
+          "command": "gitWeave.branches.push",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'localBranch'",
+          "group": "3_create@2"
+        },
+        {
+          "command": "gitWeave.branches.rename",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'localBranch'",
+          "group": "3_create@3"
+        },
+        {
+          "command": "gitWeave.branches.copyName",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection =~ /^(localBranch|remoteBranch|tag)$/",
+          "group": "8_copy@1"
+        },
+        {
+          "command": "gitWeave.graph.copySha",
+          "when": "webviewId == 'gitWeave.graph' && sha",
+          "group": "8_copy@2"
+        },
+        {
+          "command": "gitWeave.branches.delete",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection =~ /^(localBranch|remoteBranch)$/ && !isCurrent",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.branches.deleteTag",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'tag'",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.graph.openDiff",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file'",
+          "group": "1_open@1"
+        },
+        {
+          "command": "gitWeave.graph.openFile",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file' && !fileDeleted",
+          "group": "1_open@2"
+        },
+        {
+          "command": "gitWeave.graph.copyPath",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file'",
+          "group": "9_copy"
+        },
+        {
+          "command": "gitWeave.worktrees.openNewWindow",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && openable",
+          "group": "1_open@1"
+        },
+        {
+          "command": "gitWeave.worktrees.open",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && openable",
+          "group": "1_open@2"
+        },
+        {
+          "command": "gitWeave.worktrees.openIssue",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && hasIssue",
+          "group": "1_open@3"
+        },
+        {
+          "command": "gitWeave.worktrees.copyPath",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree'",
+          "group": "8_copy@1"
+        },
+        {
+          "command": "gitWeave.worktrees.reveal",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree'",
+          "group": "8_copy@2"
+        },
+        {
+          "command": "gitWeave.worktrees.delete",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && deletable",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.stashes.apply",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'stash'",
+          "group": "1_apply@1"
+        },
+        {
+          "command": "gitWeave.stashes.pop",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'stash'",
+          "group": "1_apply@2"
+        },
+        {
+          "command": "gitWeave.stashes.drop",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'stash'",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.stashes.create",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'stashes'",
+          "group": "1_create@1"
+        },
+        {
+          "command": "gitWeave.stashes.createUntracked",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'stashes'",
+          "group": "1_create@2"
+        },
+        {
+          "command": "gitWeave.changes.stage",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup =~ /^(unstaged|merge)$/",
+          "group": "2_stage"
+        },
+        {
+          "command": "gitWeave.changes.unstage",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup == 'staged'",
+          "group": "2_stage"
+        },
+        {
+          "command": "gitWeave.changes.discard",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup == 'unstaged'",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.changes.stageAll",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup =~ /^(unstaged|merge)$/",
+          "group": "1_stage"
+        },
+        {
+          "command": "gitWeave.changes.unstageAll",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup == 'staged'",
+          "group": "1_stage"
+        },
+        {
+          "command": "gitWeave.changes.discardAll",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup == 'unstaged'",
+          "group": "9_delete"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "gitWeave.graph.refresh",
+          "when": "activeWebviewPanelId == 'gitWeave.graph'",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Git Weave",
+      "properties": {
+        "gitWeave.windowTitle.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Set the workspace `#window.title#`: the workspace name for a `.code-workspace`, else the git remote path (`owner/repo`). Writes the project's `.vscode/settings.json`."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitWeave",
+          "title": "Git Weave",
+          "icon": "media/scm.svg"
+        }
+      ]
+    },
+    "views": {
+      "gitWeave": [
+        {
+          "type": "webview",
+          "id": "gitWeave.sidebar",
+          "name": "Repository"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@vscode/codicons": "0.0.46-24"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

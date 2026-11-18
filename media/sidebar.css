@@ -1,0 +1,99 @@
+/* Sidebar view: repository selector, then branches, worktrees, stashes and tags */
+:root {
+  --page-background: var(--vscode-sideBar-background);
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Repository selector: a summary row, opened into checkboxes */
+#repos {
+  flex: none;
+  margin: 4px 0 6px;
+}
+
+#repos-toggle {
+  font-weight: 600;
+}
+
+#repos-toggle:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+#repos-list[hidden] {
+  display: none;
+}
+
+.tree-row.repo-check {
+  padding-left: 24px;
+}
+
+.repo-check input {
+  margin: 0 4px 0 0;
+  accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
+}
+
+#branches {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Commit box, as the Source Control view's input and button */
+#commit {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 8px 6px;
+}
+
+#message {
+  resize: none;
+  min-height: 26px;
+  max-height: 200px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+
+#message:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+#message::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+#commit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+#commit-button:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+#commit-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

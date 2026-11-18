@@ -1,0 +1,35 @@
+# Git Weave
+
+A VS Code extension that puts Source Control and a commit graph side by side, in the spirit of WebStorm and
+GitKraken: several repositories shown together, branches, worktrees and stashes one click away. Plain
+JavaScript, no build step.
+
+## Features
+
+- **Git Weave** in the activity bar, a webview:
+  - repository checkboxes: several repositories shown together;
+  - commit box (Ctrl+Enter), one message committed in every checked repository;
+  - Merge / Staged / Changes: diff on click, stage, unstage, discard;
+  - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click.
+- **Graph** in an editor tab (the **Graph** status bar button toggles it):
+  - colored lanes, branch and tag pills, the checked repositories merged by date;
+  - one or several commits selected: their files on the right, diffs open in the first editor group.
+- **Window title** (opt-in, `gitWeave.windowTitle.enabled`): the workspace name for a `.code-workspace`, else the
+  git remote path.
+
+## Install from source
+
+```powershell
+pnpm install
+New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\lxtzfr.git-weave-0.0.1" -Target (Get-Location)
+```
+
+Then **Developer: Reload Window**. A change to the code needs a reload too.
+
+## Logs
+
+**Output** panel, channel **Git Weave**.
+
+## License
+
+[MIT](LICENSE)

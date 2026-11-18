@@ -1,0 +1,41 @@
+// Branch and tag rows of the sidebar view (sidebar.js). Click: select the ref's commit in the graph;
+// double-click: checkout; right-click: the branch actions (package.json webview/context).
+(function () {
+  const { el, codicon, menuContext } = window.dom;
+  const { tree } = window;
+  const RefType = { Head: 0, RemoteHead: 1, Tag: 2 }; // as branches.js
+
+  // Context of a ref for the webview/context menus; also used by the graph's pills.
+  function refContext(ref) {
+    const section = ref.type === RefType.Head ? 'localBranch' : ref.type === RefType.RemoteHead ? 'remoteBranch' : 'tag';
+    return { webviewSection: section, ref, root: ref.root, isCurrent: !!ref.current };
+  }
+
+  function row(ref, depth, api, nameOf) {
+    const key = `ref:${ref.root}:${ref.type}:${ref.name}`;
+    const div = el('div', `tree-row ref${ref.current ? ' current' : ''}`);
+    if (api.isSelected(key)) div.classList.add('selected');
+    tree.indent(div, depth, true);
+    const icon = ref.type === RefType.Tag ? 'tag' : ref.current ? 'check' : ref.type === RefType.RemoteHead ? 'cloud' : 'git-branch';
+    const name = nameOf(ref);
+    div.append(codicon(icon), el('span', 'name', name.substring(name.lastIndexOf('/') + 1)));
+    const track = trackOf(ref);
+    if (track) div.append(el('span', 'description', track));
+    div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
+    menuContext(div, refContext(ref));
+    div.addEventListener('click', () => {
+      api.select(key);
+      api.reveal(ref.commit, ref.root);
+    });
+    if (ref.type !== RefType.Tag) div.addEventListener('dblclick', () => api.post({ type: 'checkout', ref }));
+    return div;
+  }
+
+  // "↑1 ↓2" against the upstream, as the status bar shows it
+  function trackOf(ref) {
+    if (ref.gone) return 'upstream gone';
+    return [ref.ahead ? `↑${ref.ahead}` : '', ref.behind ? `↓${ref.behind}` : ''].filter(Boolean).join(' ');
+  }
+
+  window.refs = { row, refContext };
+})();
