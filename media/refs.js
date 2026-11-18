@@ -1,7 +1,7 @@
 // Branch and tag rows of the sidebar view (sidebar.js). Click: select the ref's commit in the graph;
 // double-click: checkout; right-click: the branch actions (package.json webview/context).
 (function () {
-  const { el, codicon, menuContext } = window.dom;
+  const { el, codicon, menuContext, actionButton } = window.dom;
   const { tree } = window;
   const RefType = { Head: 0, RemoteHead: 1, Tag: 2 }; // as branches.js
 
@@ -26,6 +26,11 @@
       if (ref.ahead) counts.append(codicon('arrow-up'), String(ref.ahead));
       if (ref.behind) counts.append(codicon('arrow-down'), String(ref.behind));
       div.append(counts);
+    }
+    if (ref.type === RefType.Head) {
+      // Hover button, as the native tree's inline actions: the same command as the context menu's Push.
+      if (!div.querySelector('.description')) div.append(el('span', 'spacer'));
+      div.append(actionButton('repo-push', 'Push', () => api.command('gitWeave.branches.push', refContext(ref))));
     }
     div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
