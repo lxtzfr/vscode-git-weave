@@ -23,6 +23,9 @@
   };
 
   let api;
+  let order = []; // the files in render order (Shift+click ranges)
+  let anchor; // the last clicked file
+  const picked = new Map(); // key -> file, the multi-selection
 
   // api: the sidebar's row API; draft: the repository's input box, applied unless the user is typing.
   function init(sidebarApi) {
@@ -72,6 +75,7 @@
   // Appends the sections' rows to out, through the sidebar's bySection (a sub-folder per repository when
   // several are checked). A section's actions act on every checked repository, a sub-folder's on its own.
   function sections(out, bySection) {
+    order = [];
     for (const group of GROUPS) {
       const menu = { webviewSection: 'changes', changeGroup: group.id };
       const actions = group.actions.map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.changes.${cmd}`, menu)));
@@ -81,6 +85,9 @@
       const footer = group.id === 'unstaged' ? commitBox : undefined;
       bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty, footer });
     }
+    // Files that left the lists (committed, discarded) leave the selection.
+    const keys = new Set(order.map(keyOf));
+    for (const k of picked.keys()) if (!keys.has(k)) picked.delete(k);
   }
 
   // A group's files as a folder tree, or as a list sorted by path (each file's folder as its description).
@@ -92,9 +99,33 @@
     }
   }
 
+  const keyOf = (file) => `change:${file.root}:${file.group}:${file.path}`;
+
+  // Ctrl/Cmd+click toggles a file, Shift+click extends to the last clicked one; a selection stays within one
+  // repository and group (what one stage / unstage / discard command acts on).
+  function pick(file, e) {
+    const key = keyOf(file);
+    const same = (f) => f.root === file.root && f.group === file.group;
+    if (e.shiftKey && anchor && same(anchor)) {
+      const from = order.findIndex((f) => keyOf(f) === keyOf(anchor));
+      const to = order.findIndex((f) => keyOf(f) === key);
+      picked.clear();
+      order.slice(Math.min(from, to), Math.max(from, to) + 1).filter(same).forEach((f) => picked.set(keyOf(f), f));
+      return;
+    }
+    for (const [k, f] of picked) if (!same(f)) picked.delete(k);
+    if (!picked.size) order.filter((f) => same(f) && api.isSelected(keyOf(f))).forEach((f) => picked.set(keyOf(f), f));
+    if (picked.has(key)) picked.delete(key);
+    else picked.set(key, file);
+    anchor = file;
+  }
+
   function fileRow(file, depth, folder) {
-    const key = `change:${file.root}:${file.group}:${file.path}`;
+    const key = keyOf(file);
+    order.push(file);
+    const multi = picked.size > 1 && picked.has(key);
     const context = { changeGroup: file.group };
+    if (multi) context.files = [...picked.values()];
     const ctx = { file, root: file.root, ...context };
     const actions = FILE_ACTIONS[file.group]
       .filter(([, , cmd]) => cmd !== 'graph.openFile' || file.right)
@@ -102,10 +133,17 @@
     return files.row(file, {
       depth,
       folder,
-      selected: api.isSelected(key),
+      selected: api.isSelected(key) || picked.has(key),
       context,
       actions,
-      onClick: () => {
+      onClick: (e) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+          pick(file, e);
+          api.changed();
+          return;
+        }
+        picked.clear();
+        anchor = file;
         api.select(key);
         api.post({ type: file.left ? 'openDiff' : 'openFile', file });
       },

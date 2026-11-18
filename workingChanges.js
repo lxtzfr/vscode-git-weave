@@ -110,7 +110,8 @@ function registerChangeCommands(context, reposOf) {
       vscode.window.showErrorMessage(`${action} failed: ${errorText(err)}`);
     }
   };
-  const one = (repos, ctx) => [{ repo: repos[0], files: [ctx.file] }];
+  // ctx.files: a multi-selection of the row's group (workingTree.js), else the row's own file.
+  const one = (repos, ctx) => [{ repo: repos[0], files: ctx.files || [ctx.file] }];
   const actions = {
     stage: (repos, ctx) => stage(one(repos, ctx)),
     unstage: (repos, ctx) => unstage(one(repos, ctx)),

@@ -50,15 +50,12 @@
   // The selector: a summary row, opened into one checkbox per repository (WebStorm's root filter).
   function renderRepos() {
     const checked = data.repos.filter((r) => r.selected);
-    const label = checked.length === 1 ? checked[0].name : checked.length === data.repos.length ? `All repositories (${checked.length})` : checked.map((r) => r.name).join(', ');
-    const icon = checked.length === 1 ? repoIcon(checked[0].color) : codicon('repo');
-    reposToggle.replaceChildren(codicon(state.reposOpen ? 'chevron-down' : 'chevron-right'), icon, el('span', 'name', label));
-    if (checked.length === 1 && checked[0].branch) reposToggle.append(el('span', 'description', checked[0].branch));
+    // Always named "Repositories", with the checked count ("2/3" when not all are).
+    const count = checked.length === data.repos.length ? `${checked.length}` : `${checked.length}/${data.repos.length}`;
+    reposToggle.replaceChildren(codicon(state.reposOpen ? 'chevron-down' : 'chevron-right'), el('span', 'name', 'Repositories'), el('span', 'description', count));
     reposToggle.title = checked.map((r) => r.root).join('\n');
     reposList.hidden = !state.reposOpen;
-    const rows = data.repos.map((repo) => repoRow(repo, checked));
-    if (data.repos.length > 1) rows.unshift(allRow(checked));
-    reposList.replaceChildren(...rows);
+    reposList.replaceChildren(...data.repos.map((repo) => repoRow(repo, checked)));
   }
 
   function checkRow(checked, name, description, icon) {
@@ -76,9 +73,9 @@
   function repoRow(repo, checked) {
     const { row, box } = checkRow(repo.selected, repo.name, repo.branch, repoIcon(repo.color));
     row.title = repo.root;
-    // The last checked one stays: the views always show a repository.
-    box.disabled = repo.selected && checked.length === 1;
     box.addEventListener('change', () => {
+      // The last checked one stays checked (the views always show a repository): clicking it selects all.
+      if (!box.checked && checked.length === 1 && repo.selected) return selectRepos(data.repos.map((r) => r.root));
       const roots = data.repos.filter((r) => (r === repo ? box.checked : r.selected)).map((r) => r.root);
       selectRepos(roots);
     });
@@ -87,13 +84,6 @@
       only.addEventListener('click', (e) => e.preventDefault()); // a click in a label would toggle its checkbox
       row.append(el('span', 'spacer'), only);
     }
-    return row;
-  }
-
-  function allRow(checked) {
-    const { row, box } = checkRow(checked.length === data.repos.length, 'All repositories');
-    box.indeterminate = checked.length > 0 && checked.length < data.repos.length;
-    box.addEventListener('change', () => selectRepos(box.checked ? data.repos.map((r) => r.root) : [data.repos.find((r) => r.selected).root]));
     return row;
   }
 
