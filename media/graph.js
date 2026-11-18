@@ -235,21 +235,23 @@
   }
 
   // Native graph shapes: HEAD a ring around a dot, a merge a ring, another commit a dot, WIP a dashed ring.
+  // An unpushed commit (on no remote branch) is dashed too: its dot becomes a dashed ring.
   function node(row, cx, cy, stroke) {
     if (row.wip) return [svgEl('circle', { cx, cy, r: NODE_R + 1, class: 'node wip', style: { stroke } })];
+    const dashed = row.unpushed ? ' dashed' : '';
     if (row.head) {
       return [
-        svgEl('circle', { cx, cy, r: NODE_R + 2, class: 'node ring', style: { stroke } }),
+        svgEl('circle', { cx, cy, r: NODE_R + 2, class: `node ring${dashed}`, style: { stroke } }),
         svgEl('circle', { cx, cy, r: NODE_R - 1.5, class: 'node', style: { fill: stroke } }),
       ];
     }
-    if (row.parents.length > 1) return [svgEl('circle', { cx, cy, r: NODE_R, class: 'node ring', style: { stroke } })];
+    if (row.parents.length > 1 || row.unpushed) return [svgEl('circle', { cx, cy, r: NODE_R, class: `node ring${dashed}`, style: { stroke } })];
     return [svgEl('circle', { cx, cy, r: NODE_R, class: 'node', style: { fill: stroke } })];
   }
 
   // Lines run vertically; a lane joining or leaving a node turns at the node's height ('up' halves
   // end at the node row's middle, 'down' halves start there): branches leave to the right, merge from it.
-  function line({ x1, x2, color: c }, half) {
+  function line({ x1, x2, color: c, dashed }, half) {
     const a = laneX(x1);
     const b = laneX(x2);
     const mid = ROW_H / 2;
@@ -262,7 +264,7 @@
       const dir = Math.sign(b - a); // out of the node at a
       d = `M${a} ${mid}H${b - dir * CURVE_R}A${CURVE_R} ${CURVE_R} 0 0 ${dir > 0 ? 1 : 0} ${b} ${mid + CURVE_R}V${ROW_H}`;
     }
-    return svgEl('path', { d, style: { stroke: color(c) } });
+    return svgEl('path', { d, style: { stroke: color(c) }, ...(dashed && { class: 'dashed' }) });
   }
 
   // Click: select one; Ctrl/Cmd+click: toggle; Shift+click: range from the anchor (WebStorm / VS Code lists).

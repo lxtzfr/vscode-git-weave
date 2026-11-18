@@ -8,10 +8,11 @@
 const REF_COLOR = 'ref';
 const COLOR_COUNT = 5; // scmGraph.foreground1..5
 
-// commits: display order (children before parents), { hash, parents: [hash], wip, head } (head: a
-// repository's HEAD; several repositories can share one graph).
+// commits: display order (children before parents), { hash, parents: [hash], wip, head, unpushed } (head: a
+// repository's HEAD; unpushed: on no remote branch; its lines to its parents are dashed, as the WIP row's;
+// several repositories can share one graph).
 // Returns one row per commit: { col, color, width, up: [piece], down: [piece] },
-// piece = { x1, x2, color } in lane units: x1 at the half's top, x2 at its bottom.
+// piece = { x1, x2, color, dashed } in lane units: x1 at the half's top, x2 at its bottom.
 function layoutGraph(commits) {
   const lanes = []; // lane index -> { hash it waits for, color }, null = free
   const rows = [];
@@ -29,6 +30,7 @@ function layoutGraph(commits) {
 
   for (let r = 0; r < commits.length; r++) {
     const { hash, parents, wip, head } = commits[r];
+    const dashed = commits[r].unpushed || wip; // uncommitted changes are not pushed either
     let col = laneOf(hash);
     let color;
     if (col === -1) {
@@ -48,8 +50,8 @@ function layoutGraph(commits) {
       const prev = rows[r - 1];
       for (const p of pending) {
         const to = p.hash === hash ? col : p.lane;
-        prev.down.push({ x1: p.from, x2: p.lane, color: p.color });
-        row.up.push({ x1: p.lane, x2: to, color: p.color });
+        prev.down.push({ x1: p.from, x2: p.lane, color: p.color, dashed: p.dashed });
+        row.up.push({ x1: p.lane, x2: to, color: p.color, dashed: p.dashed });
       }
     }
 
@@ -57,30 +59,30 @@ function layoutGraph(commits) {
 
     // First parent keeps the node's lane, even when another lane already waits for it: both
     // lanes then join at the parent, which draws the fork point.
-    lanes[col] = parents.length ? { hash: parents[0], color } : null;
+    lanes[col] = parents.length ? { hash: parents[0], color, dashed } : null;
     const fromNode = new Set([col]);
     const extra = []; // other parents already awaited by a lane: line from the node into that lane
     for (const parent of parents.slice(1)) {
       const existing = laneOf(parent);
       if (existing !== -1) {
-        extra.push({ from: col, lane: existing, hash: parent, color: lanes[existing].color });
+        extra.push({ from: col, lane: existing, hash: parent, color: lanes[existing].color, dashed });
       } else {
         const j = freeLane(col);
-        lanes[j] = { hash: parent, color: newColor() };
+        lanes[j] = { hash: parent, color: newColor(), dashed };
         fromNode.add(j);
       }
     }
     while (lanes.length && lanes[lanes.length - 1] === null) lanes.pop();
 
     pending = [];
-    lanes.forEach((l, i) => l && pending.push({ from: fromNode.has(i) ? col : i, lane: i, hash: l.hash, color: l.color }));
+    lanes.forEach((l, i) => l && pending.push({ from: fromNode.has(i) ? col : i, lane: i, hash: l.hash, color: l.color, dashed: l.dashed }));
     pending.push(...extra);
     rows.push(row);
   }
 
   // Parents not loaded (beyond the page): lines run off the last row.
   const last = rows[rows.length - 1];
-  if (last) for (const p of pending) last.down.push({ x1: p.from, x2: p.lane, color: p.color });
+  if (last) for (const p of pending) last.down.push({ x1: p.from, x2: p.lane, color: p.color, dashed: p.dashed });
 
   for (const row of rows) {
     const xs = [row.col, ...row.up.flatMap((p) => [p.x1, p.x2]), ...row.down.flatMap((p) => [p.x1, p.x2])];

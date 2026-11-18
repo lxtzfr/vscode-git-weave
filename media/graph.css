@@ -147,6 +147,18 @@ body {
   stroke-width: 2;
 }
 
+/* Unpushed commits: dashed lines to their parents and a dashed ring. 2.2 + 2.2 divides the 22px row, so the
+   dashes line up from one row to the next. */
+.cell.graph path.dashed {
+  stroke-dasharray: 2.2 2.2;
+  stroke-linecap: butt;
+}
+
+.node.ring.dashed {
+  stroke-width: 1.5;
+  stroke-dasharray: 2 1.5;
+}
+
 .node.wip {
   fill: var(--vscode-editor-background);
   stroke-width: 1.5;

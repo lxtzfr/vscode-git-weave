@@ -56,11 +56,18 @@ function parseRefs(decoration, remoteNames) {
 // A row's id, unique across repositories (two worktrees of one repository share their commits).
 const rowId = (root, hash) => `${root}\n${hash}`;
 
+// Commits on a local branch but on no remote one. None when there is no remote: everything would be unpushed.
+async function unpushedHashes(repo) {
+  if (!(repo.state.remotes || []).length) return new Set();
+  const out = await runGit(repo, ['rev-list', '--branches', '--not', '--remotes']);
+  return new Set(out.split('\n').filter(Boolean));
+}
+
 // One repository's rows, newest first: commit fields, ref pills, plus a WIP row on top of HEAD when
 // the working tree has changes. Hashes become row ids, for the layout to keep repositories apart.
 async function repoRows(repo, limit) {
   const root = repo.rootUri.fsPath;
-  const { commits, hasMore } = await loadCommits(repo, limit);
+  const [{ commits, hasMore }, unpushed] = await Promise.all([loadCommits(repo, limit), unpushedHashes(repo)]);
   const head = repo.state.HEAD && repo.state.HEAD.commit;
   const changes = repo.state.workingTreeChanges.length + repo.state.indexChanges.length + repo.state.mergeChanges.length;
   if (changes && head) {
@@ -75,6 +82,7 @@ async function repoRows(repo, limit) {
     id: rowId(root, c.hash),
     refs: parseRefs(c.refs, remoteNames),
     head: c.hash === head,
+    unpushed: unpushed.has(c.hash),
   }));
   return { rows, hasMore };
 }
@@ -98,7 +106,7 @@ function mergeByTime(lists, limit) {
 async function loadGraph(repos, limit) {
   const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit)));
   const { rows, cut } = mergeByTime(loaded.map((l) => l.rows), limit);
-  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, head: r.head })));
+  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, head: r.head, unpushed: r.unpushed })));
   return {
     rows: rows.map(({ sortTime, ...r }, i) => ({ ...r, graph: layout[i] })),
     hasMore: cut || loaded.some((l) => l.hasMore),
