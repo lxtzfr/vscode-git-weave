@@ -48,7 +48,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 0 8px 6px;
+  margin: 4px 8px 6px;
 }
 
 #message {

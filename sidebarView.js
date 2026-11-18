@@ -34,9 +34,11 @@ class SidebarView {
 <div id="repos-toggle" class="tree-row" tabindex="0"></div>
 <div id="repos-list" hidden></div>
 </div>
+<div hidden>
 <div id="commit">
 <textarea id="message" rows="1"></textarea>
 <button id="commit-button"><span class="codicon codicon-check"></span>Commit</button>
+</div>
 </div>
 <div id="branches"></div>`,
       scripts: ['files.js', 'workingTree.js', 'worktrees.js', 'stashes.js', 'sidebar.js'],

@@ -121,18 +121,24 @@
     const createStash = actionButton('add', 'Stash Changes…', () => api.command('gitWeave.stashes.create', stashMenu));
     bySection(out, '§stashes', 'Stashes', (g) => g.stashes, (o, g, key, depth) => flat(o, g.stashes, stashes.row, depth), { actions: [createStash], menu: stashMenu, keepEmpty: true });
     bySection(out, '§tags', 'Tags', (g) => g.refs.tags, (o, g, key, depth) => named(o, key, g.refs.tags, refName, refs.row, depth), { noCount: true });
-    branchesEl.replaceChildren(...out);
+    workingTree.keepCaret(() => branchesEl.replaceChildren(...out));
   }
 
   // A section filled from each checked repository: fill(out, group, key, depth) appends a repository's
   // rows, under a sub-folder per repository when several are checked. options: { actions, menu, keepEmpty,
-  // noCount }: noCount hides the section's number (the branches', whose lists show themselves).
-  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount } = {}) {
+  // noCount, footer }: noCount hides the section's number (the branches', whose lists show themselves);
+  // footer: a node shown under the section's rows while it is open.
+  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer } = {}) {
     const groups = data.groups.filter((g) => itemsOf(g).length);
     const count = groups.reduce((n, g) => n + itemsOf(g).length, 0);
     if (!count && !keepEmpty) return;
     out.push(sectionRow(key, label, 0, noCount ? undefined : count, actions, menu));
     if (collapsed.has(key)) return;
+    sectionRows(out, key, groups, fill, menu);
+    if (footer) out.push(footer);
+  }
+
+  function sectionRows(out, key, groups, fill, menu) {
     if (data.groups.length === 1) return groups.forEach((g) => fill(out, g, key, 1));
     for (const g of groups) {
       const sub = `${key}/${g.root}`;

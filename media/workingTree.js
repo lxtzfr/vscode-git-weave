@@ -1,10 +1,11 @@
 // Uncommitted changes of the sidebar view (sidebar.js), as the Source Control view groups them, from
-// workingChanges.js's loadChanges: the commit box, then Merge / Staged / Changes, one row per file (a list or a
-// folder tree, toggled by the section's button).
+// workingChanges.js's loadChanges: Merge / Staged / Changes, one row per file (a list or a folder tree, toggled
+// by the section's button), the commit box under the Changes files.
 // Click: its diff; hover buttons and right-click: stage, unstage, discard (package.json webview/context).
 (function () {
   const { actionButton } = window.dom;
   const { files, tree } = window;
+  const commitBox = document.getElementById('commit'); // moved into the Changes section by each render (sidebar.js)
   const message = document.getElementById('message');
   const commitButton = document.getElementById('commit-button');
   const MESSAGE_DELAY_MS = 300;
@@ -76,7 +77,9 @@
       const actions = group.actions.map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.changes.${cmd}`, menu)));
       actions.unshift(files.layoutButton(api.filesAsTree(), api.toggleFilesLayout));
       const fill = (o, g, key, depth) => fillFiles(o, g.changes[group.id], key, depth);
-      bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty });
+      // The commit box closes the Changes section, under its files (it commits what the Staged section holds).
+      const footer = group.id === 'unstaged' ? commitBox : undefined;
+      bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty, footer });
     }
   }
 
@@ -109,5 +112,18 @@
     });
   }
 
-  window.workingTree = { init, update, sections, committed };
+  // Runs a render that re-attaches the commit box: that drops the caret and the textarea's height (a detached
+  // textarea has none), so both are restored.
+  function keepCaret(render) {
+    const typing = document.activeElement === message;
+    const { selectionStart, selectionEnd } = message;
+    render();
+    autosize();
+    if (typing && message.isConnected) {
+      message.focus();
+      message.setSelectionRange(selectionStart, selectionEnd);
+    }
+  }
+
+  window.workingTree = { init, update, sections, committed, keepCaret };
 })();
