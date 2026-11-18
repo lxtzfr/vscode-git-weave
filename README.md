@@ -17,14 +17,9 @@ JavaScript, no build step.
 - **Window title** (opt-in, `gitWeave.windowTitle.enabled`): the workspace name for a `.code-workspace`, else the
   git remote path.
 
-## Install from source
+## Install
 
-```powershell
-pnpm install
-New-Item -ItemType Junction -Path "$env:USERPROFILE\.vscode\extensions\lxtzfr.git-weave-0.0.1" -Target (Get-Location)
-```
-
-Then **Developer: Reload Window**. A change to the code needs a reload too.
+From the Extensions view: search **Git Weave**, or **Install from VSIX…** with a `.vsix` of the releases.
 
 ## Logs
 

@@ -5,6 +5,7 @@
   "version": "0.0.1",
   "publisher": "lxtzfr",
   "license": "MIT",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/lxtzfr/vscode-git-weave"
@@ -500,9 +501,6 @@
         }
       ]
     }
-  },
-  "dependencies": {
-    "@vscode/codicons": "0.0.46-24"
   },
   "packageManager": "pnpm@10.33.2"
 }

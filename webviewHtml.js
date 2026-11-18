@@ -1,10 +1,10 @@
 const vscode = require('vscode');
 const crypto = require('crypto');
 
-// Shared by the graph panel and the sidebar view: scripts and styles from media/, codicons from the package.
+// Shared by the graph panel and the sidebar view: scripts, styles and the codicons font, all from media/.
+// The codicons are copied there (media/codicons), not a dependency: vsce cannot package a pnpm node_modules.
 function webviewOptions(extensionUri) {
-  const localResourceRoots = [vscode.Uri.joinPath(extensionUri, 'media'), vscode.Uri.joinPath(extensionUri, 'node_modules', '@vscode', 'codicons', 'dist')];
-  return { enableScripts: true, localResourceRoots };
+  return { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')] };
 }
 
 // No 'unsafe-inline': the scripts set styles through the CSSOM (dom.js), never a style attribute.
@@ -19,7 +19,7 @@ function webviewHtml(webview, extensionUri, { styles, body, scripts }) {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="${uri('node_modules', '@vscode', 'codicons', 'dist', 'codicon.css')}">
+<link rel="stylesheet" href="${uri('media', 'codicons', 'codicon.css')}">
 ${css.join('\n')}
 </head>
 <body>
