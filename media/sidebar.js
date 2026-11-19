@@ -103,7 +103,11 @@
     const out = [];
     workingTree.sections(out, bySection);
     const refName = (ref) => ref.name;
-    bySection(out, '§local', 'Local', (g) => g.refs.local, (o, g, key, depth) => named(o, key, g.refs.local, refName, refs.row, depth), { noCount: true });
+    bySection(out, '§local', 'Local', (g) => g.refs.local, (o, g, key, depth) => named(o, key, g.refs.local, refName, refs.row, depth), {
+      noCount: true,
+      actions: refs.syncButtons(api, {}),
+      rowActions: (g) => refs.syncButtons(api, { root: g.root }),
+    });
     bySection(out, '§remote', 'Remote', (g) => g.refs.remote, remotes, { noCount: true });
     const createWorktree = actionButton('add', 'Create Worktree…', () => api.command('gitWeave.worktrees.create', {}));
     bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => flat(o, g.worktrees, worktrees.row, depth), { actions: [createWorktree] });
@@ -118,21 +122,22 @@
   // rows, under a sub-folder per repository when several are checked. options: { actions, menu, keepEmpty,
   // noCount, footer }: noCount hides the section's number (the branches', whose lists show themselves);
   // footer: a node shown under the section's rows while it is open.
-  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer } = {}) {
+  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer, rowActions } = {}) {
     const groups = data.groups.filter((g) => itemsOf(g).length);
     const count = groups.reduce((n, g) => n + itemsOf(g).length, 0);
     if (!count && !keepEmpty) return;
     out.push(sectionRow(key, label, 0, noCount ? undefined : count, actions, menu));
     if (collapsed.has(key)) return;
-    sectionRows(out, key, groups, fill, menu);
+    sectionRows(out, key, groups, fill, menu, rowActions);
     if (footer) out.push(footer);
   }
 
-  function sectionRows(out, key, groups, fill, menu) {
+  // rowActions(group) -> the hover buttons of a repository's sub-folder.
+  function sectionRows(out, key, groups, fill, menu, rowActions) {
     if (data.groups.length === 1) return groups.forEach((g) => fill(out, g, key, 1));
     for (const g of groups) {
       const sub = `${key}/${g.root}`;
-      const row = tree.folderRow({ label: g.name, path: sub, depth: 1 }, collapsed, changed, ['repo', 'repo']);
+      const row = tree.folderRow({ label: g.name, path: sub, depth: 1 }, collapsed, changed, ['repo', 'repo'], rowActions && rowActions(g));
       row.querySelector('.codicon-repo').style.color = repoColor(g.color);
       row.title = g.root;
       if (menu) menuContext(row, { ...menu, root: g.root });

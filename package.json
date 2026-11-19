@@ -52,6 +52,18 @@
         "title": "Push Branch"
       },
       {
+        "command": "gitWeave.sync.fetch",
+        "title": "Fetch"
+      },
+      {
+        "command": "gitWeave.sync.pull",
+        "title": "Pull"
+      },
+      {
+        "command": "gitWeave.sync.push",
+        "title": "Push"
+      },
+      {
         "command": "gitWeave.branches.rename",
         "title": "Rename Branch"
       },
@@ -237,6 +249,18 @@
         },
         {
           "command": "gitWeave.branches.push",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.sync.fetch",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.sync.pull",
+          "when": "false"
+        },
+        {
+          "command": "gitWeave.sync.push",
           "when": "false"
         },
         {

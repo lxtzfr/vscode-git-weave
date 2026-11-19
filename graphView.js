@@ -5,7 +5,7 @@ const { loadGraph, positionOf, rowId } = require('./graphData');
 const { loadRefs } = require('./refs');
 const { registerWorktreeCommands } = require('./worktrees');
 const { loadStashes, registerStashCommands } = require('./stashes');
-const { checkoutRef, registerBranchCommands, RefType } = require('./branches');
+const { checkoutRef, registerBranchCommands, registerSyncCommands, RefType } = require('./branches');
 const { commitChanges, openDiff, openFile } = require('./commitFiles');
 const { registerChangeCommands } = require('./workingChanges');
 const { webviewOptions, webviewHtml } = require('./webviewHtml');
@@ -303,7 +303,9 @@ function registerGraphView(context, git, selection) {
     return repo && { repo, stash: ctx.stash };
   }, () => selection.refresh());
   // A section's "all" actions: every selected repository; a file's: its own.
-  registerChangeCommands(context, (ctx) => (ctx.root ? [own(ctx)].filter(Boolean) : selection.repos()));
+  const reposOf = (ctx) => (ctx.root ? [own(ctx)].filter(Boolean) : selection.repos());
+  registerChangeCommands(context, reposOf);
+  registerSyncCommands(context, reposOf);
   return graph;
 }
 
