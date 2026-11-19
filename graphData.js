@@ -61,6 +61,17 @@ function parseRefs(decoration, remoteNames) {
   return [...pills.values()].sort((a, b) => Number(b.current || false) - Number(a.current || false));
 }
 
+// The default branch's first-parent chain (origin/HEAD's branch, local and remote; else main / master): the
+// graph's trunk, on its own lane (graphLayout.js). Empty when there is no such branch.
+async function trunkHashes(repo) {
+  const originHead = (await runGit(repo, ['symbolic-ref', '-q', 'refs/remotes/origin/HEAD']).catch(() => '')).trim();
+  const name = originHead.replace(/^refs\/remotes\/origin\//, '');
+  const patterns = name ? [`refs/heads/${name}`, originHead] : ['refs/heads/main', 'refs/heads/master', 'refs/remotes/origin/main', 'refs/remotes/origin/master'];
+  const refs = (await runGit(repo, ['for-each-ref', '--format=%(refname)', ...patterns])).split('\n').filter(Boolean);
+  if (!refs.length) return new Set();
+  return new Set((await runGit(repo, ['rev-list', '--first-parent', ...refs])).split('\n').filter(Boolean));
+}
+
 // A row's id, unique across repositories (two worktrees of one repository share their commits).
 const rowId = (root, hash) => `${root}\n${hash}`;
 
@@ -79,7 +90,7 @@ const uncommitted = (n) => `${n} uncommitted change${n > 1 ? 's' : ''}`;
 async function repoRows(repo, limit) {
   const root = repo.rootUri.fsPath;
   const others = await otherWorktrees(repo);
-  const [{ commits, hasMore }, unpushed] = await Promise.all([loadCommits(repo, limit, others), unpushedHashes(repo)]);
+  const [{ commits, hasMore }, unpushed, trunk] = await Promise.all([loadCommits(repo, limit, others), unpushedHashes(repo), trunkHashes(repo)]);
   const head = repo.state.HEAD && repo.state.HEAD.commit;
   for (const wt of others.filter((w) => w.changes.length)) {
     const subject = `${wt.name}: ${uncommitted(wt.changes.length)}`;
@@ -99,6 +110,8 @@ async function repoRows(repo, limit) {
     refs: parseRefs(c.refs, remoteNames),
     head: c.hash === head,
     unpushed: unpushed.has(c.hash),
+    // This window's WIP row on a trunk HEAD stays in the trunk's lane, right above it.
+    trunk: trunk.has(c.hash) || (c.wip && !c.worktree && trunk.has(head)),
   }));
   return { rows, hasMore };
 }
@@ -122,7 +135,7 @@ function mergeByTime(lists, limit) {
 async function loadGraph(repos, limit) {
   const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit)));
   const { rows, cut } = mergeByTime(loaded.map((l) => l.rows), limit);
-  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed })));
+  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed, trunk: r.trunk ? r.root : undefined })));
   return {
     rows: rows.map(({ sortTime, ...r }, i) => ({ ...r, graph: layout[i] })),
     hasMore: cut || loaded.some((l) => l.hasMore),
