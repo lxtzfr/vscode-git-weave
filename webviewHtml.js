@@ -1,5 +1,9 @@
 const vscode = require('vscode');
 const crypto = require('crypto');
+const { log } = require('./logger');
+
+// The commands a webview's hover buttons may run: our own.
+const WEBVIEW_COMMANDS = /^gitWeave\.(worktrees|stashes|branches|changes|graph|sync)\./;
 
 // Shared by the graph panel and the sidebar view: scripts, styles and the codicons font, all from media/.
 // The codicons are copied there (media/codicons), not a dependency: vsce cannot package a pnpm node_modules.
@@ -29,4 +33,13 @@ ${js.join('\n')}
 </html>`;
 }
 
-module.exports = { webviewOptions, webviewHtml };
+// A webview's hover button: the same command as its context menu, same argument (msg.ctx). msg.key: a button
+// waiting for the end (its spinner), told through post({ type: 'commandDone' }) when the command settled.
+function runWebviewCommand(msg, post, tag) {
+  if (!WEBVIEW_COMMANDS.test(msg.command)) return log.warn(`[${tag}] refused command:`, msg.command);
+  return Promise.resolve(vscode.commands.executeCommand(msg.command, msg.ctx))
+    .catch((err) => log.error(`[${tag}] command failed:`, msg.command, err))
+    .finally(() => msg.key && post({ type: 'commandDone', key: msg.key }));
+}
+
+module.exports = { webviewOptions, webviewHtml, runWebviewCommand };

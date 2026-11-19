@@ -14,7 +14,9 @@
     const open = foldable && api.expanded.has(key);
     out.push(row(wt, key, depth, api, foldable, open));
     if (!open) return;
-    for (const change of [...wt.changes].sort(files.byPath)) out.push(fileRow({ ...change, root: wt.root }, depth + 1, api));
+    const list = wt.changes.map((change) => ({ ...change, root: wt.root }));
+    const rowOf = (file, d, folder) => fileRow(file, d, folder, api);
+    out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth: depth + 1, onToggle: api.changed, rowOf }));
   }
 
   function row(wt, key, depth, api, foldable, open) {
@@ -64,16 +66,16 @@
   }
 
   // No changeGroup: this window's stage / unstage / discard menus stay off another worktree's files.
-  function fileRow(file, depth, api) {
+  function fileRow(file, depth, folder, api) {
     const key = `worktree-file:${file.root}:${file.worktree}:${file.path}`;
     const ctx = { file, root: file.root };
     const actions = file.right ? [actionButton('go-to-file', 'Open File (read-only)', () => api.command('gitWeave.graph.openFile', ctx))] : [];
     actions.push(actionButton('discard', 'Discard Changes', () => api.command('gitWeave.worktrees.discardFile', ctx)));
     return files.row(file, {
       depth,
-      folder: true,
+      folder,
       selected: api.isSelected(key),
-      context: { worktreeFile: true },
+      context: { discardToHead: true },
       actions,
       onClick: () => {
         api.select(key);

@@ -108,10 +108,10 @@ function registerWorktreeCommands(context, resolve, refresh) {
     openIssue: (item) => item.worktree.issue && item.worktree.issue.url && vscode.env.openExternal(vscode.Uri.parse(item.worktree.issue.url)),
     discardAll: async (item) => discard(item.repo, item.worktree.path, (await loadWorktreeChanges(item.worktree.path)) || [], refresh),
   };
-  // A file row of another worktree (sidebar, graph's changed files): ctx.file.worktree.
+  // A file of another worktree (ctx.file.worktree) or of this window's WIP row in the graph (ctx.file.wip).
   const discardFile = (ctx) => {
-    const item = ctx && ctx.file && ctx.file.worktree && resolve(ctx);
-    return item && discard(item.repo, ctx.file.worktree, [ctx.file], refresh);
+    const item = ctx && ctx.file && (ctx.file.worktree || ctx.file.wip) && resolve(ctx);
+    return item && discard(item.repo, ctx.file.worktree || item.repo.rootUri.fsPath, [ctx.file], refresh);
   };
   context.subscriptions.push(
     ...Object.entries(commands).map(([name, fn]) => vscode.commands.registerCommand(`gitWeave.worktrees.${name}`, withItem(fn))),

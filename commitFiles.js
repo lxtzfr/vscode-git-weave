@@ -53,7 +53,7 @@ function workingTreeFiles(repo) {
 // A merge against its first parent, as the SCM graph does. commit.worktree: another worktree's WIP row.
 async function filesOf(repo, commit) {
   if (commit.wip && commit.worktree) return (await loadWorktreeChanges(commit.worktree)) || [];
-  if (commit.wip) return workingTreeFiles(repo);
+  if (commit.wip) return workingTreeFiles(repo).map((f) => ({ ...f, wip: true }));
   const args = ['diff-tree', '-r', '-z', '-M', '--name-status', '--no-commit-id'];
   const out = commit.parents.length ? await runGit(repo, [...args, commit.parents[0], commit.hash]) : await runGit(repo, [...args, '--root', commit.hash]);
   return parseNameStatus(out).map((f) => withSides(f, commit.parents[0], commit.hash));

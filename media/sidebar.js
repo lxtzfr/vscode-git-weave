@@ -6,7 +6,7 @@
 (function () {
   const vscode = acquireVsCodeApi();
   const { el, codicon, actionButton, menuContext, repoIcon, repoColor, busy, busyKey } = window.dom;
-  const { tree, refs, worktrees, stashes, workingTree } = window;
+  const { tree, files, refs, worktrees, stashes, workingTree } = window;
 
   const reposToggle = document.getElementById('repos-toggle');
   const reposList = document.getElementById('repos-list');
@@ -35,10 +35,12 @@
     isSelected: (key) => key === state.selectedKey,
     // The changes' tree / list layout, and what their folder rows need (the collapsed set, a re-render).
     filesAsTree: () => state.filesAsTree,
-    toggleFilesLayout: () => {
-      state.filesAsTree = !state.filesAsTree;
-      changed();
-    },
+    // One tree / list choice for every file list of the view (changes, worktrees' changes), as in Source Control.
+    layoutButton: () =>
+      files.layoutButton(state.filesAsTree, () => {
+        state.filesAsTree = !state.filesAsTree;
+        changed();
+      }),
     collapsed,
     expanded,
     changed: () => changed(),
@@ -123,7 +125,7 @@
       rowActions: (g) => [refs.fetchButton(api, { root: g.root })],
     });
     const createWorktree = actionButton('add', 'Create Worktree…', () => api.command('gitWeave.worktrees.create', {}));
-    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => g.worktrees.forEach((wt) => worktrees.rows(o, wt, depth, api)), { actions: [createWorktree] });
+    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => g.worktrees.forEach((wt) => worktrees.rows(o, wt, depth, api)), { actions: [api.layoutButton(), createWorktree] });
     const stashMenu = { webviewSection: 'stashes' };
     const createStash = actionButton('add', 'Stash Changes…', () => api.command('gitWeave.stashes.create', stashMenu));
     bySection(out, '§stashes', 'Stashes', (g) => g.stashes, (o, g, key, depth) => flat(o, g.stashes, stashes.row, depth), { actions: [createStash], menu: stashMenu, keepEmpty: true });

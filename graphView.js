@@ -8,7 +8,7 @@ const { loadStashes, registerStashCommands } = require('./stashes');
 const { checkoutRef, registerBranchCommands, registerFetchCommand, RefType } = require('./branches');
 const { commitChanges, openDiff, openFile } = require('./commitFiles');
 const { registerChangeCommands } = require('./workingChanges');
-const { webviewOptions, webviewHtml } = require('./webviewHtml');
+const { webviewOptions, webviewHtml, runWebviewCommand } = require('./webviewHtml');
 
 const VIEW_TYPE = 'gitWeave.graph';
 const PAGE_SIZE = 500;
@@ -162,6 +162,8 @@ class GraphPanel {
         return this.select(msg.commits);
       case 'openDiff':
         return this.fileAction('openDiff', msg.file);
+      case 'command':
+        return runWebviewCommand(msg, (m) => this.post(m), 'graph');
       case 'checkout': {
         const repo = msg.ref && this.selection.byRoot(msg.ref.root);
         return repo && checkoutRef(repo, { name: msg.ref.name, remote: msg.ref.type === RefType.RemoteHead });

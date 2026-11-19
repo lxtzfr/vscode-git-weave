@@ -4,7 +4,7 @@
 // Click: its diff; hover buttons and right-click: stage, unstage, discard (package.json webview/context).
 (function () {
   const { actionButton } = window.dom;
-  const { files, tree } = window;
+  const { files } = window;
   const commitBox = document.getElementById('commit'); // moved into the Changes section by each render (sidebar.js)
   const message = document.getElementById('message');
   const commitButton = document.getElementById('commit-button');
@@ -79,7 +79,7 @@
     for (const group of GROUPS) {
       const menu = { webviewSection: 'changes', changeGroup: group.id };
       const actions = group.actions.map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.changes.${cmd}`, menu)));
-      actions.unshift(files.layoutButton(api.filesAsTree(), api.toggleFilesLayout));
+      actions.unshift(api.layoutButton());
       const fill = (o, g, key, depth) => fillFiles(o, g.changes[group.id], key, depth);
       // The commit box closes the Changes section, under its files (it commits what the Staged section holds).
       const footer = group.id === 'unstaged' ? commitBox : undefined;
@@ -90,13 +90,9 @@
     for (const k of picked.keys()) if (!keys.has(k)) picked.delete(k);
   }
 
-  // A group's files as a folder tree, or as a list sorted by path (each file's folder as its description).
-  // key: the folders' collapsed-set prefix, so each group and repository collapses its own.
+  // key: each group and repository collapses its own folders.
   function fillFiles(out, list, key, depth) {
-    if (!api.filesAsTree()) return [...list].sort(files.byPath).forEach((file) => out.push(fileRow(file, depth, true)));
-    for (const row of tree.flatten(tree.build(list, (f) => f.path), api.collapsed, (f) => f.path, depth, key)) {
-      out.push(row.folder ? tree.folderRow(row, api.collapsed, api.changed) : fileRow(row.item, row.depth, false));
-    }
+    out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth, onToggle: api.changed, rowOf: fileRow }));
   }
 
   const keyOf = (file) => `change:${file.root}:${file.group}:${file.path}`;

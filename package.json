@@ -448,7 +448,7 @@
         },
         {
           "command": "gitWeave.worktrees.discardFile",
-          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file' && worktreeFile",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file' && discardToHead",
           "group": "9_delete"
         },
         {
