@@ -11,11 +11,12 @@
   const reposToggle = document.getElementById('repos-toggle');
   const reposList = document.getElementById('repos-list');
   const branchesEl = document.getElementById('branches');
-  const state = Object.assign({ collapsed: ['§tags'], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
+  const state = Object.assign({ collapsed: ['§tags'], expanded: [], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
   const collapsed = new Set(state.collapsed);
+  const expanded = new Set(state.expanded); // rows closed by default (a worktree's changes), the user opened
   let data; // { repos: [{ root, name, branch, selected }], groups: [{ root, name, refs, worktrees, stashes, changes }] }
   const post = (msg) => vscode.postMessage(msg);
-  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed] });
+  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed], expanded: [...expanded] });
 
   // What row builders get: post a message, reveal a commit, select a row (highlighted until another one).
   const api = {
@@ -39,6 +40,7 @@
       changed();
     },
     collapsed,
+    expanded,
     changed: () => changed(),
     select: (key) => {
       state.selectedKey = key;
@@ -121,7 +123,7 @@
       rowActions: (g) => [refs.fetchButton(api, { root: g.root })],
     });
     const createWorktree = actionButton('add', 'Create Worktree…', () => api.command('gitWeave.worktrees.create', {}));
-    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => flat(o, g.worktrees, worktrees.row, depth), { actions: [createWorktree] });
+    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => g.worktrees.forEach((wt) => worktrees.rows(o, wt, depth, api)), { actions: [createWorktree] });
     const stashMenu = { webviewSection: 'stashes' };
     const createStash = actionButton('add', 'Stash Changes…', () => api.command('gitWeave.stashes.create', stashMenu));
     bySection(out, '§stashes', 'Stashes', (g) => g.stashes, (o, g, key, depth) => flat(o, g.stashes, stashes.row, depth), { actions: [createStash], menu: stashMenu, keepEmpty: true });

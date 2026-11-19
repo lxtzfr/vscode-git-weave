@@ -87,7 +87,7 @@
   function renderDetails(rows, body) {
     if (rows.length > 1) return renderList(rows);
     const [row] = rows;
-    if (row.wip) return detailsEl.replaceChildren(el('div', 'message', 'Uncommitted changes'));
+    if (row.wip) return detailsEl.replaceChildren(el('div', 'message', wipLabel(row)));
     const date = new Date(row.time * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     const meta = el('div', 'meta');
     meta.append(
@@ -103,7 +103,7 @@
   function renderList(rows) {
     const list = el('div', 'meta');
     for (const row of rows) {
-      const div = line(row.wip ? 'circle-outline' : 'git-commit', row.wip ? 'Uncommitted changes' : `${row.hash.substring(0, 7)}  ${row.subject}`);
+      const div = line(row.wip ? 'circle-outline' : 'git-commit', row.wip ? wipLabel(row) : `${row.hash.substring(0, 7)}  ${row.subject}`);
       div.title = row.wip ? '' : `${row.hash}
 ${row.author} <${row.email}>
 ${row.subject}`;
@@ -111,6 +111,8 @@ ${row.subject}`;
     }
     detailsEl.replaceChildren(el('div', 'message', `${rows.length} commits selected`), list);
   }
+
+  const wipLabel = (row) => (row.worktree ? `Uncommitted changes in ${row.worktreeName} (read-only)` : 'Uncommitted changes');
 
   function line(icon, text) {
     const div = el('div', 'meta-line');

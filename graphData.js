@@ -1,16 +1,24 @@
 const { runGit } = require('./gitRepos');
 const { layoutGraph } = require('./graphLayout');
+const { loadWorktrees } = require('./worktrees');
 
 const FIELD = '\x1f';
 const RECORD = '\x1e';
 const WIP = '*';
 
-// Branches, remotes, tags and HEAD, not --all: it would pull in refs/stash and its index commits.
+// Branches, remotes, tags and HEAD, not --all: it would pull in refs/stash and its index commits. The other
+// worktrees' HEADs too: a detached slot's commits are on no branch.
 const LOG_REFS = ['--branches', '--remotes', '--tags', 'HEAD'];
+const logRevs = (others) => [...LOG_REFS, ...others.map((wt) => wt.commit)];
 
-async function loadCommits(repo, limit) {
+// The repository's other worktrees with a commit (worktrees.js), their changes included.
+async function otherWorktrees(repo) {
+  return (await loadWorktrees(repo)).filter((wt) => !wt.current && wt.commit && wt.state !== 'missing');
+}
+
+async function loadCommits(repo, limit, others) {
   const format = `${RECORD}%H${FIELD}%P${FIELD}%an${FIELD}%ae${FIELD}%at${FIELD}%D${FIELD}%s`;
-  const out = await runGit(repo, ['log', ...LOG_REFS, '--date-order', `-n${limit + 1}`, `--format=${format}`]);
+  const out = await runGit(repo, ['log', ...logRevs(others), '--date-order', `-n${limit + 1}`, `--format=${format}`]);
   const commits = out
     .split(RECORD)
     .filter((r) => r.trim())
@@ -63,15 +71,23 @@ async function unpushedHashes(repo) {
   return new Set(out.split('\n').filter(Boolean));
 }
 
+const uncommitted = (n) => `${n} uncommitted change${n > 1 ? 's' : ''}`;
+
 // One repository's rows, newest first: commit fields, ref pills, plus a WIP row on top of HEAD when
-// the working tree has changes. Hashes become row ids, for the layout to keep repositories apart.
+// the working tree has changes, and one on top of each other worktree's HEAD with changes (read-only:
+// worktreeFiles.js). Hashes become row ids, for the layout to keep repositories apart.
 async function repoRows(repo, limit) {
   const root = repo.rootUri.fsPath;
-  const [{ commits, hasMore }, unpushed] = await Promise.all([loadCommits(repo, limit), unpushedHashes(repo)]);
+  const others = await otherWorktrees(repo);
+  const [{ commits, hasMore }, unpushed] = await Promise.all([loadCommits(repo, limit, others), unpushedHashes(repo)]);
   const head = repo.state.HEAD && repo.state.HEAD.commit;
+  for (const wt of others.filter((w) => w.changes.length)) {
+    const subject = `${wt.name}: ${uncommitted(wt.changes.length)}`;
+    commits.unshift({ hash: `${WIP}${wt.path}`, parents: [wt.commit], subject, refs: '', wip: true, worktree: wt.path, worktreeName: wt.name, time: Infinity });
+  }
   const changes = repo.state.workingTreeChanges.length + repo.state.indexChanges.length + repo.state.mergeChanges.length;
   if (changes && head) {
-    commits.unshift({ hash: WIP, parents: [head], subject: `${changes} uncommitted change${changes > 1 ? 's' : ''}`, refs: '', wip: true, time: Infinity });
+    commits.unshift({ hash: WIP, parents: [head], subject: uncommitted(changes), refs: '', wip: true, time: Infinity });
   }
   const remoteNames = (repo.state.remotes || []).map((r) => r.name);
   const rows = commits.map((c) => ({
@@ -106,16 +122,16 @@ function mergeByTime(lists, limit) {
 async function loadGraph(repos, limit) {
   const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit)));
   const { rows, cut } = mergeByTime(loaded.map((l) => l.rows), limit);
-  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, head: r.head, unpushed: r.unpushed })));
+  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed })));
   return {
     rows: rows.map(({ sortTime, ...r }, i) => ({ ...r, graph: layout[i] })),
     hasMore: cut || loaded.some((l) => l.hasMore),
   };
 }
 
-// Row index of a commit in its repository's graph order (without the WIP row), -1 when no ref reaches it.
+// Row index of a commit in its repository's graph order (without the WIP rows), -1 when no ref reaches it.
 async function positionOf(repo, hash) {
-  const out = await runGit(repo, ['log', ...LOG_REFS, '--date-order', '--format=%H']);
+  const out = await runGit(repo, ['log', ...logRevs(await otherWorktrees(repo)), '--date-order', '--format=%H']);
   return out.split('\n').indexOf(hash);
 }
 

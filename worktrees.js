@@ -3,6 +3,7 @@ const path = require('path');
 const { log } = require('./logger');
 const { repoName, githubIssueUrl, runGit } = require('./gitRepos');
 const { readSlotMarker, worktreeState } = require('./slotInfo');
+const { loadWorktreeChanges } = require('./worktreeFiles');
 
 function samePath(a, b) {
   const norm = (p) => path.resolve(p).replace(/[\\/]+$/, '');
@@ -31,13 +32,14 @@ function parseWorktrees(out) {
     });
 }
 
-// Worktrees for the graph's sidebar: { path, name, commit, branch, main, current, slot, issue, state, lastSession },
-// issue = { number, title, url } of a my-stack wt slot.
+// Worktrees for the graph's sidebar: { path, name, commit, branch, main, current, slot, issue, state, lastSession, changes },
+// issue = { number, title, url } of a my-stack wt slot, changes = its changed files (worktreeFiles.js).
 async function loadWorktrees(repo) {
   const worktrees = parseWorktrees(await runGit(repo, ['worktree', 'list', '--porcelain']));
   return Promise.all(
     worktrees.map(async (wt) => {
       const marker = wt.prunable ? undefined : readSlotMarker(wt.path);
+      const changes = wt.prunable ? [] : await loadWorktreeChanges(wt.path);
       // Same rule as `wt list`: the marker's ticket only counts while the slot is still on its branch.
       const issue = marker && marker.issue && wt.branch && marker.branch === wt.branch ? marker : undefined;
       return {
@@ -46,8 +48,9 @@ async function loadWorktrees(repo) {
         current: isOpenInThisWindow(wt.path),
         slot: !wt.main && marker !== undefined,
         issue: issue && { number: issue.issue, title: issue.title || '', url: githubIssueUrl(repo, issue.issue) },
-        state: wt.prunable ? 'missing' : await worktreeState(wt.path),
+        state: wt.prunable ? 'missing' : worktreeState(wt.path, changes),
         lastSession: marker && marker.lastSession,
+        changes: changes || [],
       };
     })
   );

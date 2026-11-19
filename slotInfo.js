@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { execFile } = require('child_process');
 const { log } = require('./logger');
 
 const MARKER = 'my-stack-wt.json';
@@ -30,17 +29,11 @@ function readSlotMarker(worktreePath) {
 }
 
 // Same states as `wt list`: Unity holds Temp/UnityLockfile while the project is open.
-function worktreeState(worktreePath) {
-  if (fs.existsSync(path.join(worktreePath, 'Temp', 'UnityLockfile'))) return Promise.resolve('unity open');
-  return new Promise((resolve) => {
-    execFile('git', ['-C', worktreePath, 'status', '--porcelain'], { windowsHide: true }, (err, stdout) => {
-      if (err) {
-        log.warn(`[slots] git status failed in ${worktreePath}:`, err);
-        return resolve(undefined);
-      }
-      resolve(stdout.trim() ? 'dirty' : 'clean');
-    });
-  });
+// changes: the worktree's changed files (worktreeFiles.js), undefined when git failed.
+function worktreeState(worktreePath, changes) {
+  if (fs.existsSync(path.join(worktreePath, 'Temp', 'UnityLockfile'))) return 'unity open';
+  if (!changes) return undefined;
+  return changes.length ? 'dirty' : 'clean';
 }
 
 module.exports = { readSlotMarker, worktreeState };

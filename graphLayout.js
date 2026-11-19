@@ -8,9 +8,9 @@
 const REF_COLOR = 'ref';
 const COLOR_COUNT = 5; // scmGraph.foreground1..5
 
-// commits: display order (children before parents), { hash, parents: [hash], wip, head, unpushed } (head: a
+// commits: display order (children before parents), { hash, parents: [hash], wip, worktree, head, unpushed } (head: a
 // repository's HEAD; unpushed: on no remote branch; its lines to its parents are dashed, as the WIP row's;
-// several repositories can share one graph).
+// worktree: the WIP row of another worktree, in its branch's color; several repositories can share one graph).
 // Returns one row per commit: { col, color, width, up: [piece], down: [piece] },
 // piece = { x1, x2, color, dashed } in lane units: x1 at the half's top, x2 at its bottom.
 function layoutGraph(commits) {
@@ -29,7 +29,7 @@ function layoutGraph(commits) {
   const laneOf = (hash) => lanes.findIndex((l) => l && l.hash === hash);
 
   for (let r = 0; r < commits.length; r++) {
-    const { hash, parents, wip, head } = commits[r];
+    const { hash, parents, wip, worktree, head } = commits[r];
     const dashed = commits[r].unpushed || wip; // uncommitted changes are not pushed either
     let col = laneOf(hash);
     let color;
@@ -39,7 +39,7 @@ function layoutGraph(commits) {
     } else {
       color = lanes[col].color;
     }
-    if (head || wip) color = REF_COLOR;
+    if (head || (wip && !worktree)) color = REF_COLOR;
     const row = { col, color, up: [], down: [] };
 
     // Close the previous row's lines now that this node's column is known. A line runs in its lane:

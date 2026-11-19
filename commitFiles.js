@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const path = require('path');
 const { log } = require('./logger');
 const { runGit } = require('./gitRepos');
+const { worktreeUri, loadWorktreeChanges } = require('./worktreeFiles');
 
 const EMPTY_SCHEME = 'my-empty';
 // git runs per selected commit, a few at a time: a selection can span hundreds of commits.
@@ -49,8 +50,9 @@ function workingTreeFiles(repo) {
   return [...byPath.values()].map((f) => withSides(f, 'HEAD', undefined));
 }
 
-// A merge against its first parent, as the SCM graph does.
+// A merge against its first parent, as the SCM graph does. commit.worktree: another worktree's WIP row.
 async function filesOf(repo, commit) {
+  if (commit.wip && commit.worktree) return (await loadWorktreeChanges(commit.worktree)) || [];
   if (commit.wip) return workingTreeFiles(repo);
   const args = ['diff-tree', '-r', '-z', '-M', '--name-status', '--no-commit-id'];
   const out = commit.parents.length ? await runGit(repo, [...args, commit.parents[0], commit.hash]) : await runGit(repo, [...args, '--root', commit.hash]);
@@ -69,7 +71,8 @@ function combine(perCommit) {
         continue;
       }
       if (file.oldPath) byPath.delete(file.oldPath);
-      byPath.set(file.path, { path: file.path, left: prev.left, right: file.right, combined: true });
+      // The newest side decides where its working-tree side is read (another worktree's WIP row is the newest).
+      byPath.set(file.path, { path: file.path, left: prev.left, right: file.right, worktree: file.worktree, combined: true });
     }
   }
   return [...byPath.values()]
@@ -78,7 +81,7 @@ function combine(perCommit) {
       if (!f.combined) return f;
       const oldPath = f.left && f.left.path !== f.path ? f.left.path : undefined;
       const status = !f.left ? 'A' : !f.right ? 'D' : oldPath ? 'R' : 'M';
-      return { status, path: f.path, oldPath, left: f.left, right: f.right };
+      return { status, path: f.path, oldPath, left: f.left, right: f.right, worktree: f.worktree };
     });
 }
 
@@ -95,7 +98,7 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
-// commits: the selection in display order (newest first), { hash, parents, wip }.
+// commits: the selection in display order (newest first), { hash, parents, wip, worktree }.
 // Returns { files, body }, body = the full message of a single selected commit.
 async function commitChanges(repo, commits) {
   const lists = await mapLimit([...commits].reverse(), PARALLEL_GIT, (c) => filesOf(repo, c));
@@ -107,7 +110,9 @@ async function commitChanges(repo, commits) {
 
 const sideLabel = (side) => (side.ref === '~' ? 'Index' : side.ref ? (/^[0-9a-f]{40}$/.test(side.ref) ? side.ref.substring(0, 7) : side.ref) : 'Working Tree');
 
-function sideUri(git, repo, side) {
+// file.worktree: a file of another worktree (worktreeFiles.js), shown read-only.
+function sideUri(git, repo, file, side) {
+  if (file.worktree) return worktreeUri(file.worktree, side);
   const uri = vscode.Uri.joinPath(repo.rootUri, side.path);
   return side.ref ? git.toGitUri(uri, side.ref) : uri;
 }
@@ -122,17 +127,18 @@ async function besideFirstGroup() {
 // The missing side of an added / deleted file is an empty document: git has no such revision.
 async function openDiff(git, repo, file) {
   const empty = vscode.Uri.from({ scheme: EMPTY_SCHEME, path: `/${file.path}` });
-  const left = file.left ? sideUri(git, repo, file.left) : empty;
-  const right = file.right ? sideUri(git, repo, file.right) : empty;
-  const labels = [file.left, file.right].filter(Boolean).map(sideLabel).join(' ↔ ');
+  const left = file.left ? sideUri(git, repo, file, file.left) : empty;
+  const right = file.right ? sideUri(git, repo, file, file.right) : empty;
+  const where = file.worktree ? `${path.basename(file.worktree)}: ` : '';
+  const labels = where + [file.left, file.right].filter(Boolean).map(sideLabel).join(' ↔ ');
   log.info(`[commitFiles] open diff ${file.path} (${labels})`);
   await vscode.commands.executeCommand('vscode.diff', left, right, `${path.posix.basename(file.path)} (${labels})`, { preview: true, viewColumn: await besideFirstGroup() });
 }
 
 async function openFile(git, repo, file) {
   if (!file.right) return;
-  log.info(`[commitFiles] open ${file.path} @ ${sideLabel(file.right)}`);
-  await vscode.window.showTextDocument(sideUri(git, repo, file.right), { preview: true, viewColumn: await besideFirstGroup() });
+  log.info(`[commitFiles] open ${file.worktree ? `${file.worktree}: ` : ''}${file.path} @ ${sideLabel(file.right)}`);
+  await vscode.window.showTextDocument(sideUri(git, repo, file, file.right), { preview: true, viewColumn: await besideFirstGroup() });
 }
 
 function registerEmptyDocuments(context) {

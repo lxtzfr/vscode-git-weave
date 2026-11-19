@@ -4,6 +4,7 @@ const { RepoSelection } = require('./repoSelection');
 const { registerGraphView } = require('./graphView');
 const { registerSidebarView } = require('./sidebarView');
 const { registerEmptyDocuments } = require('./commitFiles');
+const { registerWorktreeDocuments } = require('./worktreeFiles');
 const { registerWindowTitle } = require('./windowTitle');
 
 async function getGitApi() {
@@ -24,6 +25,7 @@ async function activate(context) {
   }
 
   registerEmptyDocuments(context);
+  registerWorktreeDocuments(context);
   const selection = new RepoSelection(context, git);
   context.subscriptions.push(selection);
   const graph = registerGraphView(context, git, selection);

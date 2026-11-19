@@ -319,7 +319,7 @@
     shownKey = selected.map((r) => r.id).join(',');
     if (!selected.length) return changes.clear();
     changes.loading(selected);
-    vscode.postMessage({ type: 'select', commits: selected.map(({ id, root, hash, parents, wip }) => ({ id, root, hash, parents, wip })) });
+    vscode.postMessage({ type: 'select', commits: selected.map(({ id, root, hash, parents, wip, worktree }) => ({ id, root, hash, parents, wip, worktree })) });
   }
 
   // A stash's files, against the commit it was made on (its first parent; the others hold its index
