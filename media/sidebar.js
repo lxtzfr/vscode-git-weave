@@ -105,10 +105,14 @@
     const refName = (ref) => ref.name;
     bySection(out, '§local', 'Local', (g) => g.refs.local, (o, g, key, depth) => named(o, key, g.refs.local, refName, refs.row, depth), {
       noCount: true,
-      actions: refs.syncButtons(api, {}),
-      rowActions: (g) => refs.syncButtons(api, { root: g.root }),
+      actions: [refs.fetchButton(api, {})],
+      rowActions: (g) => [refs.fetchButton(api, { root: g.root })],
     });
-    bySection(out, '§remote', 'Remote', (g) => g.refs.remote, remotes, { noCount: true });
+    bySection(out, '§remote', 'Remote', (g) => g.refs.remote, remotes, {
+      noCount: true,
+      actions: [refs.fetchButton(api, {})],
+      rowActions: (g) => [refs.fetchButton(api, { root: g.root })],
+    });
     const createWorktree = actionButton('add', 'Create Worktree…', () => api.command('gitWeave.worktrees.create', {}));
     bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => flat(o, g.worktrees, worktrees.row, depth), { actions: [createWorktree] });
     const stashMenu = { webviewSection: 'stashes' };

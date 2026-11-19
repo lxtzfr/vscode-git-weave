@@ -100,7 +100,26 @@ async function renameBranch(item) {
 }
 
 // Publishes a branch without upstream to its remote (origin, else the first one) and tracks it.
-const pushBranch = (item) => run(item, 'push', pushOne);
+const pushBranch = (item) =>
+  run(item, 'push', async (repo, ref) => {
+    const remotes = repo.state.remotes || [];
+    const remote = ref.upstream ? ref.upstream.remote : (remotes.find((r) => r.name === 'origin') || remotes[0] || {}).name;
+    if (!remote) throw new Error('no remote configured');
+    await repo.push(remote, ref.name, !ref.upstream);
+  });
+
+// Only the branch's upstream, every remote ref when it has none.
+const fetchBranch = (item) =>
+  run(item, 'fetch', (repo, ref) => (ref.upstream ? repo.fetch({ remote: ref.upstream.remote, ref: ref.upstream.name }) : repo.fetch()));
+
+// The current branch is pulled; another one is only fast-forwarded to its upstream by a fetch into it (git refuses
+// anything else), without leaving the current branch.
+const pullBranch = (item) =>
+  run(item, 'pull', async (repo, ref) => {
+    if (!ref.upstream) throw new Error(`"${ref.name}" has no upstream`);
+    if (ref.current) await repo.pull();
+    else await repo.fetch({ remote: ref.upstream.remote, ref: `${ref.upstream.name}:${ref.name}` });
+  });
 
 async function createBranchFrom(item) {
   const name = await vscode.window.showInputBox({ prompt: `New branch from "${item.ref.name}"` });
@@ -128,6 +147,8 @@ function registerBranchCommands(context, resolve) {
     merge,
     rename: renameBranch,
     push: pushBranch,
+    pull: pullBranch,
+    fetch: fetchBranch,
     createFrom: createBranchFrom,
     deleteTag,
   };
@@ -136,60 +157,24 @@ function registerBranchCommands(context, resolve) {
   );
 }
 
-// Fetch / Pull / Push at three levels, by what the button's context holds: a ref (that branch), a root (that
-// repository), neither (every selected repository). reposOf(ctx) -> the repositories to act on.
-// A non-current branch is pulled by a fast-forward-only fetch into it (git refuses anything else).
-const upstreamOf = (ref) => {
-  if (!ref.upstream) throw new Error(`"${ref.name}" has no upstream`);
-  return ref.upstream;
-};
-
-const SYNC = {
-  fetch: {
-    ref: (repo, ref) => (ref.upstream ? repo.fetch({ remote: ref.upstream.remote, ref: ref.upstream.name }) : repo.fetch()),
-    repo: (repo) => repo.fetch(),
-  },
-  pull: {
-    ref: (repo, ref) => {
-      const up = upstreamOf(ref);
-      return ref.current ? repo.pull() : repo.fetch({ remote: up.remote, ref: `${up.name}:${ref.name}` });
-    },
-    repo: (repo) => repo.pull(),
-  },
-  // Branches with an upstream and commits to push; unpublished ones are left out (publishing is the branch's own Push).
-  push: {
-    ref: (repo, ref) => pushOne(repo, ref),
-    repo: async (repo) => {
-      const ahead = (await repo.getBranches({ remote: false })).filter((b) => b.type === RefType.Head && b.upstream && b.ahead);
-      for (const b of ahead) await repo.push(b.upstream.remote, b.name);
-    },
-  },
-};
-
-async function pushOne(repo, ref) {
-  const remotes = repo.state.remotes || [];
-  const remote = ref.upstream ? ref.upstream.remote : (remotes.find((r) => r.name === 'origin') || remotes[0] || {}).name;
-  if (!remote) throw new Error('no remote configured');
-  await repo.push(remote, ref.name, !ref.upstream);
+// Fetch from the Local section or a repository row: ctx.root = that repository, absent = every selected one.
+// reposOf(ctx) -> the repositories to act on.
+function registerFetchCommand(context, reposOf) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand('gitWeave.sync.fetch', async (ctx = {}) => {
+      await Promise.all(
+        reposOf(ctx).map(async (repo) => {
+          try {
+            log.info(`[branches] ${repoName(repo)}: fetch`);
+            await repo.fetch();
+          } catch (err) {
+            log.error(`[branches] ${repoName(repo)}: fetch failed:`, err);
+            vscode.window.showErrorMessage(`${repoName(repo)}: fetch failed: ${errorText(err)}`);
+          }
+        })
+      );
+    })
+  );
 }
 
-function registerSyncCommands(context, reposOf) {
-  const sync = (action) => async (ctx = {}) => {
-    const level = ctx.ref ? 'ref' : 'repo';
-    await Promise.all(
-      reposOf(ctx).map(async (repo) => {
-        const what = ctx.ref ? ctx.ref.name : 'all';
-        try {
-          log.info(`[branches] ${repoName(repo)}: ${action} ${what}`);
-          await SYNC[action][level](repo, ctx.ref);
-        } catch (err) {
-          log.error(`[branches] ${repoName(repo)}: ${action} ${what} failed:`, err);
-          vscode.window.showErrorMessage(`${repoName(repo)}: ${action} ${what} failed: ${errorText(err)}`);
-        }
-      })
-    );
-  };
-  context.subscriptions.push(...Object.keys(SYNC).map((action) => vscode.commands.registerCommand(`gitWeave.sync.${action}`, sync(action))));
-}
-
-module.exports = { registerSyncCommands, registerBranchCommands, checkoutRef, RefType };
+module.exports = { registerFetchCommand, registerBranchCommands, checkoutRef, RefType };

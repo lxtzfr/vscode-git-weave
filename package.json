@@ -56,12 +56,12 @@
         "title": "Fetch"
       },
       {
-        "command": "gitWeave.sync.pull",
-        "title": "Pull"
+        "command": "gitWeave.branches.pull",
+        "title": "Pull Branch"
       },
       {
-        "command": "gitWeave.sync.push",
-        "title": "Push"
+        "command": "gitWeave.branches.fetch",
+        "title": "Fetch Branch"
       },
       {
         "command": "gitWeave.branches.rename",
@@ -256,11 +256,11 @@
           "when": "false"
         },
         {
-          "command": "gitWeave.sync.pull",
+          "command": "gitWeave.branches.pull",
           "when": "false"
         },
         {
-          "command": "gitWeave.sync.push",
+          "command": "gitWeave.branches.fetch",
           "when": "false"
         },
         {

@@ -11,14 +11,9 @@
     return { webviewSection: section, ref, root: ref.root, isCurrent: !!ref.current };
   }
 
-  // Fetch / Pull / Push buttons at every level: ctx holds a ref (that branch), a root (that repository) or
-  // nothing (every checked repository), as the gitWeave.sync.* commands read it.
-  function syncButtons(api, ctx) {
-    return [
-      ['cloud-download', 'Fetch', 'fetch'],
-      ['repo-pull', 'Pull', 'pull'],
-      ['repo-push', 'Push', 'push'],
-    ].map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.sync.${cmd}`, ctx)));
+  // Fetch button of the Local section (ctx {}: every checked repository) and of a repository row (ctx { root }).
+  function fetchButton(api, ctx) {
+    return actionButton('cloud-download', 'Fetch', () => api.command('gitWeave.sync.fetch', ctx));
   }
 
   function row(ref, depth, api, nameOf) {
@@ -40,7 +35,11 @@
     if (ref.type === RefType.Head) {
       // Hover button, as the native tree's inline actions: the same command as the context menu's Push.
       if (!div.querySelector('.description')) div.append(el('span', 'spacer'));
-      div.append(...syncButtons(api, refContext(ref)));
+      div.append(
+        actionButton('cloud-download', 'Fetch', () => api.command('gitWeave.branches.fetch', refContext(ref))),
+        actionButton('repo-pull', 'Pull', () => api.command('gitWeave.branches.pull', refContext(ref))),
+        actionButton('repo-push', 'Push', () => api.command('gitWeave.branches.push', refContext(ref)))
+      );
     }
     div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
@@ -58,5 +57,5 @@
     return [ref.ahead ? `↑${ref.ahead}` : '', ref.behind ? `↓${ref.behind}` : ''].filter(Boolean).join(' ');
   }
 
-  window.refs = { row, refContext, syncButtons };
+  window.refs = { row, refContext, fetchButton };
 })();

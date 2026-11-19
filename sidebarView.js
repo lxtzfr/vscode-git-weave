@@ -117,7 +117,7 @@ class SidebarView {
         return this.commit(msg.text);
       case 'command':
         // Inline buttons of the rows: the same commands as their context menus, same argument.
-        if (!/^gitWeave\.(worktrees|stashes|branches|changes|graph)\./.test(msg.command)) return log.warn('[sidebar] refused command:', msg.command);
+        if (!/^gitWeave\.(worktrees|stashes|branches|changes|graph|sync)\./.test(msg.command)) return log.warn('[sidebar] refused command:', msg.command);
         return vscode.commands.executeCommand(msg.command, msg.ctx);
       case 'checkout': {
         const repo = msg.ref && this.selection.byRoot(msg.ref.root);
