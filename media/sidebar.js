@@ -134,7 +134,6 @@
 
   // rowActions(group) -> the hover buttons of a repository's sub-folder.
   function sectionRows(out, key, groups, fill, menu, rowActions) {
-    if (data.groups.length === 1) return groups.forEach((g) => fill(out, g, key, 1));
     for (const g of groups) {
       const sub = `${key}/${g.root}`;
       const row = tree.folderRow({ label: g.name, path: sub, depth: 1 }, collapsed, changed, ['repo', 'repo'], rowActions && rowActions(g));

@@ -1,7 +1,7 @@
 // Right pane of the graph webview (WebStorm's Git log): the selected commits' files as a folder tree,
 // then their details. A click on a file opens its diff.
 (function () {
-  const { el, codicon } = window.dom;
+  const { el, codicon, repoColor } = window.dom;
   const { tree, files: fileRows } = window;
 
   const filesEl = document.getElementById('files');
@@ -32,16 +32,16 @@
   }
 
   // data: { files, body, error } from the extension for these rows.
-  function show(rows, data) {
+  function show(rows, data, repos) {
     if (!rows.length) return clear();
-    current = { rows, files: data.files };
+    current = { rows, files: data.files, repos };
     if (data.error) filesEl.replaceChildren(el('div', 'placeholder error', data.error));
     else renderFiles();
     renderDetails(rows, data.body);
   }
 
   function renderFiles() {
-    const { files, rows } = current;
+    const { files, rows, repos } = current;
     const commits = rows.length > 1 ? ` in ${rows.length} commits` : '';
     const title = el('div', 'pane-title');
     const toggle = fileRows.layoutButton(layout.asTree, () => {
@@ -50,11 +50,19 @@
     });
     title.append(el('span', 'name', `${files.length} file${files.length === 1 ? '' : 's'} changed${commits}`), toggle);
     const list = el('div', 'tree');
-    // Several repositories: their files under a folder named after each (WebStorm's grouping by root).
-    const pathOf = (file) => (file.repoName ? `${file.repoName}/${file.path}` : file.path);
+    // Files under a folder named after their repository, with its icon and color (WebStorm's grouping by root).
+    const pathOf = (file) => `${file.repoName}/${file.path}`;
     if (layout.asTree) {
-      for (const row of tree.flatten(tree.build(files, pathOf), collapsed, pathOf)) {
-        list.append(row.folder ? tree.folderRow(row, collapsed, renderFiles) : fileRow(row));
+      // One tree per repository, under its own row (a lone top folder is not merged into the repository's).
+      for (const repo of repos.filter((r) => files.some((f) => f.repoName === r.name))) {
+        const folder = tree.folderRow({ label: repo.name, path: repo.name, depth: 0 }, collapsed, renderFiles, ['repo', 'repo']);
+        folder.querySelector('.codicon-repo').style.color = repoColor(repo.color);
+        list.append(folder);
+        if (collapsed.has(repo.name)) continue;
+        const mine = files.filter((f) => f.repoName === repo.name);
+        for (const row of tree.flatten(tree.build(mine, (f) => f.path), collapsed, (f) => f.path, 1, repo.name)) {
+          list.append(row.folder ? tree.folderRow(row, collapsed, renderFiles) : fileRow(row));
+        }
       }
     } else {
       for (const file of [...files].sort((a, b) => pathOf(a).localeCompare(pathOf(b)))) list.append(fileRow({ item: file, depth: 0 }, true));

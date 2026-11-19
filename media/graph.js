@@ -391,7 +391,7 @@
     } else if (msg.type === 'showStash') {
       showStash(msg.stash);
     } else if (msg.type === 'commit') {
-      if (msg.key === shownKey) changes.show(shownRows, msg);
+      if (msg.key === shownKey) changes.show(shownRows, msg, repos);
     } else if (msg.type === 'empty') {
       rows = [];
       loadingMore = false;

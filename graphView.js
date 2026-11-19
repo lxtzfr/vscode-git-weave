@@ -177,7 +177,6 @@ class GraphPanel {
     if (!this.selected.length) return;
     const key = this.selected.map((c) => c.id).join(',');
     const label = this.selected.length === 1 ? this.selected[0].hash.substring(0, 7) : `${this.selected.length} commits`;
-    const multi = this.selection.repos().length > 1;
     const id = (this.selectId = (this.selectId || 0) + 1);
     try {
       const byRoot = new Map();
@@ -187,7 +186,7 @@ class GraphPanel {
           const repo = this.selection.byRoot(root);
           if (!repo) return { files: [], body: '' };
           const { files, body } = await commitChanges(repo, list);
-          return { files: withRoot(repo, files).map((f) => (multi ? { ...f, repoName: repoName(repo) } : f)), body };
+          return { files: withRoot(repo, files).map((f) => ({ ...f, repoName: repoName(repo) })), body };
         })
       );
       if (id !== this.selectId) return; // the selection changed meanwhile
