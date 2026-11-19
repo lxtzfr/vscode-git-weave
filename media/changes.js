@@ -76,6 +76,7 @@
       depth,
       folder,
       selected: `${file.root}\n${file.path}` === selectedPath,
+      context: { worktreeFile: !!file.worktree },
       onClick: () => {
         selectedPath = `${file.root}\n${file.path}`;
         renderFiles();

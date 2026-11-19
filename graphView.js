@@ -296,7 +296,7 @@ function registerGraphView(context, git, selection) {
   // Menus of the sidebar's rows and of the graph's pills: ctx.root is the row's repository.
   const own = (ctx) => selection.byRoot(ctx.root);
   registerBranchCommands(context, (ctx) => own(ctx) && ctx.ref && { repo: own(ctx), ref: ctx.ref });
-  registerWorktreeCommands(context, (ctx) => own(ctx) && { repo: own(ctx), worktree: ctx.worktree });
+  registerWorktreeCommands(context, (ctx) => own(ctx) && { repo: own(ctx), worktree: ctx.worktree }, () => selection.refresh());
   registerStashCommands(context, async (ctx) => {
     const repo = await selection.pick(ctx);
     return repo && { repo, stash: ctx.stash };

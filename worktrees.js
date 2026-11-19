@@ -3,7 +3,8 @@ const path = require('path');
 const { log } = require('./logger');
 const { repoName, githubIssueUrl, runGit } = require('./gitRepos');
 const { readSlotMarker, worktreeState } = require('./slotInfo');
-const { loadWorktreeChanges } = require('./worktreeFiles');
+const { loadWorktreeChanges, discardWorktreeFiles } = require('./worktreeFiles');
+const { confirmDiscard } = require('./workingChanges');
 
 function samePath(a, b) {
   const norm = (p) => path.resolve(p).replace(/[\\/]+$/, '');
@@ -75,9 +76,25 @@ async function remove(item) {
   }
 }
 
+// Another worktree's files back to HEAD. The path comes from a webview: only a worktree of the repository is touched.
+async function discard(repo, worktreePath, files, refresh) {
+  const worktrees = parseWorktrees(await runGit(repo, ['worktree', 'list', '--porcelain']));
+  const wt = worktrees.find((w) => samePath(w.path, worktreePath));
+  if (!wt || wt.prunable) return log.warn(`[worktrees] ${repoName(repo)}: discard refused, not one of its worktrees: ${worktreePath}`);
+  if (!files.length || !(await confirmDiscard(files, path.basename(wt.path)))) return;
+  try {
+    await discardWorktreeFiles(wt.path, files.map((f) => f.path));
+  } catch (err) {
+    log.error(`[worktrees] ${wt.path}: discard failed:`, err);
+    vscode.window.showErrorMessage(`Discard failed: ${err.message || err}`);
+  }
+  refresh();
+}
+
 // Actions of the graph sidebar's worktree rows (webview/context, inline buttons).
-// resolve(ctx) -> { repo, worktree }, undefined when the graph has no repository.
-function registerWorktreeCommands(context, resolve) {
+// resolve(ctx) -> { repo, worktree }, undefined when the graph has no repository; refresh(): reload the views
+// (another worktree's files are not watched).
+function registerWorktreeCommands(context, resolve, refresh) {
   const withItem = (fn) => (ctx) => {
     const item = ctx && resolve(ctx);
     return item && item.worktree && fn(item);
@@ -89,10 +106,17 @@ function registerWorktreeCommands(context, resolve) {
     reveal: (item) => vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(item.worktree.path)),
     delete: remove,
     openIssue: (item) => item.worktree.issue && item.worktree.issue.url && vscode.env.openExternal(vscode.Uri.parse(item.worktree.issue.url)),
+    discardAll: async (item) => discard(item.repo, item.worktree.path, (await loadWorktreeChanges(item.worktree.path)) || [], refresh),
+  };
+  // A file row of another worktree (sidebar, graph's changed files): ctx.file.worktree.
+  const discardFile = (ctx) => {
+    const item = ctx && ctx.file && ctx.file.worktree && resolve(ctx);
+    return item && discard(item.repo, ctx.file.worktree, [ctx.file], refresh);
   };
   context.subscriptions.push(
     ...Object.entries(commands).map(([name, fn]) => vscode.commands.registerCommand(`gitWeave.worktrees.${name}`, withItem(fn))),
-    vscode.commands.registerCommand('gitWeave.worktrees.create', () => vscode.commands.executeCommand('git.createWorktree'))
+    vscode.commands.registerCommand('gitWeave.worktrees.create', () => vscode.commands.executeCommand('git.createWorktree')),
+    vscode.commands.registerCommand('gitWeave.worktrees.discardFile', discardFile)
   );
 }
 

@@ -39,10 +39,11 @@
     const description = [wt.issue ? `#${wt.issue.number} ${wt.issue.title}` : '', branch, wt.main ? 'main' : '', changed].filter(Boolean).join(' · ');
     div.append(el('span', 'description', description));
 
-    const ctx = { webviewSection: 'worktree', worktree: wt, root: wt.root, openable: !wt.current, deletable: !wt.main && !wt.current, hasIssue: !!(wt.issue && wt.issue.url) };
+    const ctx = { webviewSection: 'worktree', worktree: wt, root: wt.root, openable: !wt.current, deletable: !wt.main && !wt.current, hasIssue: !!(wt.issue && wt.issue.url), hasChanges: foldable };
     menuContext(div, ctx);
     if (ctx.hasIssue) div.append(actionButton('issues', 'Open Ticket', () => api.command('gitWeave.worktrees.openIssue', ctx)));
     if (ctx.openable) div.append(actionButton('empty-window', 'Open in New Window', () => api.command('gitWeave.worktrees.openNewWindow', ctx)));
+    if (foldable) div.append(actionButton('discard', 'Discard All Changes', () => api.command('gitWeave.worktrees.discardAll', ctx)));
 
     div.title = [
       `${wt.path}${wt.main ? ' (main checkout)' : ''}${wt.current ? ' (this window)' : ''}`,
@@ -62,15 +63,17 @@
     return div;
   }
 
-  // No changeGroup: the stage / unstage / discard menus stay off another worktree's files.
+  // No changeGroup: this window's stage / unstage / discard menus stay off another worktree's files.
   function fileRow(file, depth, api) {
     const key = `worktree-file:${file.root}:${file.worktree}:${file.path}`;
     const ctx = { file, root: file.root };
     const actions = file.right ? [actionButton('go-to-file', 'Open File (read-only)', () => api.command('gitWeave.graph.openFile', ctx))] : [];
+    actions.push(actionButton('discard', 'Discard Changes', () => api.command('gitWeave.worktrees.discardFile', ctx)));
     return files.row(file, {
       depth,
       folder: true,
       selected: api.isSelected(key),
+      context: { worktreeFile: true },
       actions,
       onClick: () => {
         api.select(key);

@@ -36,9 +36,10 @@ function loadChanges(repo) {
 const absolute = (repo, file) => path.join(repo.rootUri.fsPath, file.path);
 const groupFiles = (repo, group) => loadChanges(repo)[group];
 
-async function confirmDiscard(files) {
+// where: the worktree the files are in, when not this window's.
+async function confirmDiscard(files, where) {
   const untracked = files.filter((f) => f.status === 'U').length;
-  const what = files.length === 1 ? files[0].path : `${files.length} files`;
+  const what = (files.length === 1 ? files[0].path : `${files.length} files`) + (where ? ` of ${where}` : '');
   const message = untracked === files.length ? `Delete ${what}? It is untracked: this cannot be undone.` : `Discard the changes in ${what}? This cannot be undone.`;
   return (await vscode.window.showWarningMessage(message, { modal: true }, 'Discard')) === 'Discard';
 }
@@ -123,4 +124,4 @@ function registerChangeCommands(context, reposOf) {
   context.subscriptions.push(...Object.entries(actions).map(([name, fn]) => vscode.commands.registerCommand(`gitWeave.changes.${name}`, run(name, fn))));
 }
 
-module.exports = { loadChanges, commit, registerChangeCommands };
+module.exports = { loadChanges, commit, confirmDiscard, registerChangeCommands };

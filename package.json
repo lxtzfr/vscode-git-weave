@@ -104,6 +104,14 @@
         "title": "Open Ticket"
       },
       {
+        "command": "gitWeave.worktrees.discardFile",
+        "title": "Discard Changes"
+      },
+      {
+        "command": "gitWeave.worktrees.discardAll",
+        "title": "Discard All Changes"
+      },
+      {
         "command": "gitWeave.stashes.apply",
         "title": "Apply Stash"
       },
@@ -431,6 +439,16 @@
         {
           "command": "gitWeave.worktrees.delete",
           "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && deletable",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.worktrees.discardAll",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'worktree' && hasChanges",
+          "group": "9_delete"
+        },
+        {
+          "command": "gitWeave.worktrees.discardFile",
+          "when": "webviewId =~ /^gitWeave\\.(graph|sidebar)$/ && webviewSection == 'file' && worktreeFile",
           "group": "9_delete"
         },
         {
