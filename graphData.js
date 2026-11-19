@@ -72,6 +72,20 @@ async function trunkHashes(repo) {
   return new Set((await runGit(repo, ['rev-list', '--first-parent', ...refs])).split('\n').filter(Boolean));
 }
 
+// A WIP row shows its branch (where its changes will be committed; none when detached): the local branch's part of
+// the pill moves up from its commit, its remote copies stay there, where they point.
+function moveBranchPillsToWip(rows) {
+  for (const wip of rows.filter((r) => r.wip && r.branch)) {
+    const commit = rows.find((r) => !r.wip && r.hash === wip.parents[0]);
+    const i = commit ? commit.refs.findIndex((p) => p.kind === 'branch' && p.local && p.name === wip.branch) : -1;
+    wip.refs = [{ name: wip.branch, kind: 'branch', local: true, remotes: [], current: !wip.worktree }];
+    if (i === -1) continue;
+    const pill = commit.refs[i];
+    if (pill.remotes.length) commit.refs[i] = { ...pill, local: false, current: false };
+    else commit.refs.splice(i, 1);
+  }
+}
+
 // A row's id, unique across repositories (two worktrees of one repository share their commits).
 const rowId = (root, hash) => `${root}\n${hash}`;
 
@@ -94,11 +108,11 @@ async function repoRows(repo, limit) {
   const head = repo.state.HEAD && repo.state.HEAD.commit;
   for (const wt of others.filter((w) => w.changes.length)) {
     const subject = `${wt.name}: ${uncommitted(wt.changes.length)}`;
-    commits.unshift({ hash: `${WIP}${wt.path}`, parents: [wt.commit], subject, refs: '', wip: true, worktree: wt.path, worktreeName: wt.name, time: Infinity });
+    commits.unshift({ hash: `${WIP}${wt.path}`, parents: [wt.commit], subject, refs: '', wip: true, worktree: wt.path, worktreeName: wt.name, branch: wt.branch, time: Infinity });
   }
   const changes = repo.state.workingTreeChanges.length + repo.state.indexChanges.length + repo.state.mergeChanges.length;
   if (changes && head) {
-    commits.unshift({ hash: WIP, parents: [head], subject: uncommitted(changes), refs: '', wip: true, time: Infinity });
+    commits.unshift({ hash: WIP, parents: [head], subject: uncommitted(changes), refs: '', wip: true, branch: repo.state.HEAD.name, time: Infinity });
   }
   const remoteNames = (repo.state.remotes || []).map((r) => r.name);
   const rows = commits.map((c) => ({
@@ -113,6 +127,7 @@ async function repoRows(repo, limit) {
     // This window's WIP row on a trunk HEAD stays in the trunk's lane, right above it.
     trunk: trunk.has(c.hash) || (c.wip && !c.worktree && trunk.has(head)),
   }));
+  moveBranchPillsToWip(rows);
   return { rows, hasMore };
 }
 
