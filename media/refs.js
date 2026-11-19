@@ -1,7 +1,7 @@
 // Branch and tag rows of the sidebar view (sidebar.js). Click: select the ref's commit in the graph;
 // double-click: checkout; right-click: the branch actions (package.json webview/context).
 (function () {
-  const { el, codicon, menuContext, actionButton } = window.dom;
+  const { el, codicon, menuContext, actionButton, busyKey } = window.dom;
   const { tree } = window;
   const RefType = { Head: 0, RemoteHead: 1, Tag: 2 }; // as branches.js
 
@@ -11,10 +11,11 @@
     return { webviewSection: section, ref, root: ref.root, isCurrent: !!ref.current };
   }
 
+  // A button running a long command: a spinner until it is done (api.run).
+  const runButton = (api, icon, title, command, ctx) => actionButton(icon, title, () => api.run(command, ctx), busyKey(command, ctx));
+
   // Fetch button of the Local section (ctx {}: every checked repository) and of a repository row (ctx { root }).
-  function fetchButton(api, ctx) {
-    return actionButton('cloud-download', 'Fetch', () => api.command('gitWeave.sync.fetch', ctx));
-  }
+  const fetchButton = (api, ctx) => runButton(api, 'cloud-download', 'Fetch', 'gitWeave.sync.fetch', ctx);
 
   function row(ref, depth, api, nameOf) {
     const key = `ref:${ref.root}:${ref.type}:${ref.name}`;
@@ -36,9 +37,9 @@
       // Hover button, as the native tree's inline actions: the same command as the context menu's Push.
       if (!div.querySelector('.description')) div.append(el('span', 'spacer'));
       div.append(
-        actionButton('cloud-download', 'Fetch', () => api.command('gitWeave.branches.fetch', refContext(ref))),
-        actionButton('repo-pull', 'Pull', () => api.command('gitWeave.branches.pull', refContext(ref))),
-        actionButton('repo-push', 'Push', () => api.command('gitWeave.branches.push', refContext(ref)))
+        runButton(api, 'cloud-download', 'Fetch', 'gitWeave.branches.fetch', refContext(ref)),
+        runButton(api, 'repo-pull', 'Pull', 'gitWeave.branches.pull', refContext(ref)),
+        runButton(api, 'repo-push', 'Push', 'gitWeave.branches.push', refContext(ref))
       );
     }
     div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');

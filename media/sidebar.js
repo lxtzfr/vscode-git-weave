@@ -5,7 +5,7 @@
 // are package.json webview/context. A ref, worktree or stash click acts in the graph tab, through the extension.
 (function () {
   const vscode = acquireVsCodeApi();
-  const { el, codicon, actionButton, menuContext, repoIcon, repoColor } = window.dom;
+  const { el, codicon, actionButton, menuContext, repoIcon, repoColor, busy, busyKey } = window.dom;
   const { tree, refs, worktrees, stashes, workingTree } = window;
 
   const reposToggle = document.getElementById('repos-toggle');
@@ -22,6 +22,13 @@
     post,
     // Runs a command as its context menu would, with the row's menu context as argument.
     command: (command, ctx) => post({ type: 'command', command, ctx }),
+    // A long command (fetch, pull, push): its button spins until the extension says it is done.
+    run: (command, ctx) => {
+      const key = busyKey(command, ctx);
+      busy.add(key);
+      renderTree();
+      post({ type: 'command', command, ctx, key });
+    },
     reveal: (hash, root) => post({ type: 'reveal', hash, root }),
     stash: (stash) => post({ type: 'stash', stash }),
     isSelected: (key) => key === state.selectedKey,
@@ -194,6 +201,10 @@
     if (msg.type === 'refs') render(msg);
     else if (msg.type === 'empty') showEmpty(msg.message);
     else if (msg.type === 'committed') workingTree.committed(msg.ok);
+    else if (msg.type === 'commandDone') {
+      busy.delete(msg.key);
+      if (data) renderTree();
+    }
   });
   reposToggle.addEventListener('click', toggleRepos);
   reposToggle.addEventListener('keydown', (e) => {

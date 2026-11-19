@@ -118,7 +118,10 @@ class SidebarView {
       case 'command':
         // Inline buttons of the rows: the same commands as their context menus, same argument.
         if (!/^gitWeave\.(worktrees|stashes|branches|changes|graph|sync)\./.test(msg.command)) return log.warn('[sidebar] refused command:', msg.command);
-        return vscode.commands.executeCommand(msg.command, msg.ctx);
+        // msg.key: a button waiting for the end (its spinner), told when the command settled.
+        return Promise.resolve(vscode.commands.executeCommand(msg.command, msg.ctx))
+          .catch((err) => log.error('[sidebar] command failed:', msg.command, err))
+          .finally(() => msg.key && this.post({ type: 'commandDone', key: msg.key }));
       case 'checkout': {
         const repo = msg.ref && this.selection.byRoot(msg.ref.root);
         return repo && checkoutRef(repo, { name: msg.ref.name, remote: msg.ref.type === RefType.RemoteHead });

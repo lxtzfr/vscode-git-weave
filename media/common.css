@@ -100,12 +100,30 @@ body {
 }
 
 .tree-row:hover .action,
-.tree-row.selected .action {
+.tree-row.selected .action,
+.tree-row .action.busy {
   display: block;
 }
 
 .tree-row .action:hover {
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+/* Same 20px box as the glyph buttons (16px glyph + 2px padding), the spinner centered in it */
+.tree-row .action.busy,
+.tree-row .action.busy:hover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  background: none;
+  cursor: default;
+}
+
+.tree-row .action.busy .codicon {
+  display: block;
 }
 
 

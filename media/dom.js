@@ -25,7 +25,18 @@
   };
 
   // Hover button of a tree row (the native tree's inline actions); the click does not reach the row.
-  function actionButton(icon, title, onClick) {
+  // busyKey: while it is in `busy` (a running command) the button is a spinner, shown without hover, not clickable.
+  const busy = new Set();
+  const busyKey = (command, ctx) => `${command}|${ctx.root || ''}|${ctx.ref ? ctx.ref.name : ''}`;
+
+  function actionButton(icon, title, onClick, key) {
+    if (key && busy.has(key)) {
+      // Only the glyph turns: spinning the button itself would turn its padding and hover background too.
+      const spinner = el('span', 'action busy');
+      spinner.title = `${title}…`;
+      spinner.append(codicon('loading codicon-modifier-spin'));
+      return spinner;
+    }
     const button = el('span', `action codicon codicon-${icon}`);
     button.title = title;
     button.addEventListener('click', (e) => {
@@ -47,5 +58,5 @@
     return icon;
   }
 
-  window.dom = { el, svgEl, codicon, menuContext, actionButton, repoColor, repoIcon };
+  window.dom = { el, svgEl, codicon, menuContext, actionButton, busy, busyKey, repoColor, repoIcon };
 })();
