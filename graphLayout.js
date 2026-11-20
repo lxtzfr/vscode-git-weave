@@ -26,6 +26,15 @@ function layoutGraph(commits) {
   let pending = []; // { from, lane, hash, color }: lines leaving the previous row
   let nextColor = 0;
   const newColor = () => nextColor++ % COLOR_COUNT;
+  // The color a commit will take (see below), known before reaching it: a lane leading to it is drawn in it from
+  // its start, so a bend does not differ from the branch it leads to.
+  const byHash = new Map(commits.map((c) => [c.hash, c]));
+  const colorOf = (hash) => {
+    const c = byHash.get(hash);
+    if (!c) return newColor();
+    if (c.head || (c.wip && !c.worktree)) return REF_COLOR;
+    return c.colorKey ? colorIndexOf(c.colorKey) : newColor();
+  };
 
   // First free lane right of `after` (GitKraken: a branch always leaves its node to the right, so
   // it always merges back leftwards); -1 for a branch tip, which nothing connects to from above.
@@ -78,7 +87,7 @@ function layoutGraph(commits) {
         extra.push({ from: col, lane: existing, hash: parent, color: lanes[existing].color, dashed });
       } else {
         const j = freeLane(col);
-        lanes[j] = { hash: parent, color: newColor(), dashed };
+        lanes[j] = { hash: parent, color: colorOf(parent), dashed };
         fromNode.add(j);
       }
     }
