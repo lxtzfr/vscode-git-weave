@@ -130,11 +130,47 @@
     );
   }
 
+  // The line of each selected commit (its lane, same color), from its node down until the lane ends or changes
+  // color, bends included: row index -> Set of pieceKey drawn bolder.
+  let lit = new Map();
+  function litLines() {
+    const map = new Map();
+    const mark = (j, half, p) => map.set(j, (map.get(j) || new Set()).add(pieceKey(half, p)));
+    const find = (pieces, x1, x2, c) => pieces.find((p) => p.x1 === x1 && p.x2 === x2 && p.color === c);
+    for (const sel of selectedRows()) {
+      const i = indexOf(sel.id);
+      if (i === -1) continue;
+      const { col, color: c } = sel.graph;
+      // From the selected commit's node down only: a tag or branch in the middle of a lane does not light what is newer.
+      const own = find(sel.graph.down, col, col, c);
+      if (own) mark(i, 'down', own);
+      // The lane goes straight, then bends into the node it joins (the branch's fork point).
+      for (let j = i + 1; j < rows.length; j++) {
+        const g = rows[j].graph;
+        const straightUp = find(g.up, col, col, c);
+        if (!straightUp) {
+          const bend = g.up.find((p) => p.x1 === col && p.x2 !== col && p.color === c);
+          if (bend) mark(j, 'up', bend);
+          break;
+        }
+        mark(j, 'up', straightUp);
+        if (g.col === col && g.color !== c) break;
+        const straightDown = find(g.down, col, col, c);
+        if (!straightDown) break;
+        mark(j, 'down', straightDown);
+      }
+    }
+    return map;
+  }
+
+  const pieceKey = (half, { x1, x2, color: c }) => `${half}:${x1}:${x2}:${c}`;
+
   function render() {
     canvas.style.height = `${rows.length * ROW_H}px`;
     const first = Math.max(0, Math.floor(scroller.scrollTop / ROW_H) - OVERSCAN);
     const last = Math.min(rows.length, Math.ceil((scroller.scrollTop + scroller.clientHeight) / ROW_H) + OVERSCAN);
     const fragment = document.createDocumentFragment();
+    lit = litLines();
     for (let i = first; i < last; i++) fragment.append(renderRow(rows[i], i));
     canvas.replaceChildren(fragment);
     maybeLoadMore(last);
@@ -149,7 +185,7 @@
     if (!row.wip) menuContext(div, { webviewSection: 'commit', sha: row.hash });
     div.addEventListener('click', (e) => onClick(e, index));
 
-    div.append(...visibleColumns().map((col) => CELLS[col.id](row)));
+    div.append(...visibleColumns().map((col) => CELLS[col.id](row, index)));
     return div;
   }
 
@@ -221,13 +257,14 @@
     return `${where.join(', ')}${pill.current ? ' (current)' : ''}`;
   }
 
-  function renderGraph(row) {
+  function renderGraph(row, index) {
     const cell = el('div', 'cell graph');
     const { col, up, down } = row.graph;
     const svg = svgEl('svg', { width: (row.graph.width + 1) * LANE_W, height: ROW_H });
     const mid = ROW_H / 2;
-    for (const p of up) svg.append(line(p, 'up'));
-    for (const p of down) svg.append(line(p, 'down'));
+    const marked = lit.get(index);
+    for (const p of up) svg.append(line(p, 'up', marked));
+    for (const p of down) svg.append(line(p, 'down', marked));
     svg.append(...node(row, laneX(col), mid, color(row.graph.color)));
     cell.append(svg);
     return cell;
@@ -250,7 +287,7 @@
 
   // Lines run vertically; a lane joining or leaving a node turns at the node's height ('up' halves
   // end at the node row's middle, 'down' halves start there): branches leave to the right, merge from it.
-  function line({ x1, x2, color: c, dashed }, half) {
+  function line({ x1, x2, color: c, dashed }, half, marked) {
     const a = laneX(x1);
     const b = laneX(x2);
     const mid = ROW_H / 2;
@@ -263,7 +300,8 @@
       const dir = Math.sign(b - a); // out of the node at a
       d = `M${a} ${mid}H${b - dir * CURVE_R}A${CURVE_R} ${CURVE_R} 0 0 ${dir > 0 ? 1 : 0} ${b} ${mid + CURVE_R}V${ROW_H}`;
     }
-    return svgEl('path', { d, style: { stroke: color(c) }, ...(dashed && { class: 'dashed' }) });
+    const classes = [dashed && 'dashed', c === 'ref' && 'head', marked && marked.has(pieceKey(half, { x1, x2, color: c })) && 'lit'].filter(Boolean).join(' ');
+    return svgEl('path', { d, style: { stroke: color(c) }, ...(classes && { class: classes }) });
   }
 
   // Click: select one; Ctrl/Cmd+click: toggle; Shift+click: range from the anchor (WebStorm / VS Code lists).
@@ -271,6 +309,8 @@
     const hash = rows[index].id;
     state.cursor = e.shiftKey ? index : undefined;
     if (e.shiftKey) return selectRange(index);
+    // A pill clicked again deselects its commit, as its row in the sidebar (a double-click checks out: never here).
+    if (e.target.closest('.label') && e.detail < 2 && state.selection.length === 1 && state.selection[0] === hash) return setSelection([], undefined);
     if (e.ctrlKey || e.metaKey) {
       const selection = state.selection.includes(hash) ? state.selection.filter((h) => h !== hash) : [...state.selection, hash];
       return setSelection(selection, hash);
@@ -385,6 +425,9 @@
       applyColumns();
       render();
       syncSelection(msg.stashes);
+    } else if (msg.type === 'deselect') {
+      state.cursor = undefined;
+      setSelection([], undefined);
     } else if (msg.type === 'reveal') {
       reveal(msg.id);
     } else if (msg.type === 'showStash') {

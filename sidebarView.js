@@ -104,6 +104,8 @@ class SidebarView {
         return this.selection.set(msg.roots);
       case 'reveal':
         return this.graph.show({ type: 'reveal', root: msg.root, hash: msg.hash });
+      case 'deselect':
+        return this.graph.deselect();
       case 'stash':
         return this.graph.show({ type: 'showStash', stash: msg.stash });
       case 'openDiff':

@@ -58,11 +58,12 @@
       .filter(Boolean)
       .join('\n');
     // With changes: its WIP row (graphData.js hash: WIP + path), else its commit.
-    div.addEventListener('click', () => {
-      api.select(key);
-      if (foldable) api.reveal(`*${wt.path}`, wt.root);
-      else if (wt.commit) api.reveal(wt.commit, wt.root);
-    });
+    div.addEventListener('click', (e) =>
+      api.toggle(e, key, () => {
+        if (foldable) api.reveal(`*${wt.path}`, wt.root);
+        else if (wt.commit) api.reveal(wt.commit, wt.root);
+      })
+    );
     if (ctx.openable) div.addEventListener('dblclick', () => api.command('gitWeave.worktrees.openNewWindow', ctx));
     return div;
   }

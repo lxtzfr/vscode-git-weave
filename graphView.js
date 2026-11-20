@@ -239,6 +239,11 @@ class GraphPanel {
     this.post({ type: 'reveal', id });
   }
 
+  // A sidebar row clicked again: clear the graph's selection (the graph is not opened for that).
+  deselect() {
+    this.post({ type: 'deselect' });
+  }
+
   post(msg) {
     if (this.panel) this.panel.webview.postMessage(msg);
   }

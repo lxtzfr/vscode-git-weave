@@ -46,6 +46,16 @@
     collapsed,
     expanded,
     changed: () => changed(),
+    // A click on a row: select it and run show (reveal in the graph), or deselect it (and the graph's selection)
+    // when it already is. The clicks of a double-click (e.detail > 1) never deselect: the double-click acts on the row.
+    toggle: (e, key, show) => {
+      if (e.detail < 2 && api.isSelected(key)) {
+        api.select(undefined);
+        return post({ type: 'deselect' });
+      }
+      api.select(key);
+      show();
+    },
     select: (key) => {
       state.selectedKey = key;
       saveState();

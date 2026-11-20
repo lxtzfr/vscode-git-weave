@@ -47,10 +47,7 @@
     }
     div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
-    div.addEventListener('click', () => {
-      api.select(key);
-      api.reveal(ref.commit, ref.root);
-    });
+    div.addEventListener('click', (e) => api.toggle(e, key, () => api.reveal(ref.commit, ref.root)));
     if (ref.type !== RefType.Tag) div.addEventListener('dblclick', () => api.post({ type: 'checkout', ref }));
     return div;
   }

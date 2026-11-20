@@ -142,6 +142,15 @@ body {
   stroke-linecap: round;
 }
 
+/* HEAD's chain (the current branch) is bolder; the line of a selected commit or ref is bolder still. */
+.cell.graph path.head {
+  stroke-width: 2;
+}
+
+.cell.graph path.lit {
+  stroke-width: 3;
+}
+
 .node.ring {
   fill: var(--vscode-editor-background);
   stroke-width: 2;
@@ -216,6 +225,7 @@ body {
   border-radius: 10px;
   font-size: 11px;
   color: var(--vscode-scmGraph-historyItemHoverLabelForeground);
+  cursor: pointer; /* a click selects its commit, again deselects */
 }
 
 .label.current .name {
