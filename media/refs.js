@@ -1,7 +1,7 @@
 // Branch and tag rows of the sidebar view (sidebar.js). Click: select the ref's commit in the graph;
 // double-click: checkout; right-click: the branch actions (package.json webview/context).
 (function () {
-  const { el, codicon, menuContext, actionButton, busyKey } = window.dom;
+  const { el, codicon, menuContext, actionButton, busyKey, commitColor } = window.dom;
   const { tree } = window;
   const RefType = { Head: 0, RemoteHead: 1, Tag: 2 }; // as branches.js
 
@@ -24,7 +24,10 @@
     tree.indent(div, depth, true);
     const icon = ref.type === RefType.Tag ? 'tag' : ref.current ? 'check' : ref.type === RefType.RemoteHead ? 'cloud' : 'git-branch';
     const name = nameOf(ref);
-    div.append(codicon(icon), el('span', 'name', name.substring(name.lastIndexOf('/') + 1)));
+    const iconEl = codicon(icon);
+    const colorCommit = ref.colorCommit || ref.commit; // a tag: its branch's tip
+    iconEl.style.color = commitColor(colorCommit, colorCommit === api.headOf(ref.root)); // the graph pill's color
+    div.append(iconEl, el('span', 'name', name.substring(name.lastIndexOf('/') + 1)));
     const track = trackOf(ref);
     if (ref.gone) div.append(el('span', 'description', track));
     else if (track) {

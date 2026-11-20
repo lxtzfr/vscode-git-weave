@@ -150,7 +150,8 @@ function mergeByTime(lists, limit) {
 async function loadGraph(repos, limit) {
   const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit)));
   const { rows, cut } = mergeByTime(loaded.map((l) => l.rows), limit);
-  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed, trunk: r.trunk ? r.root : undefined })));
+  // colorKey: a branch's commit has its own color; a tag keeps its branch's lane color.
+  const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed, colorKey: r.refs.some((p) => p.kind === 'branch') && !r.wip ? r.hash : undefined, trunk: r.trunk ? r.root : undefined })));
   return {
     rows: rows.map(({ sortTime, ...r }, i) => ({ ...r, graph: layout[i] })),
     hasMore: cut || loaded.some((l) => l.hasMore),

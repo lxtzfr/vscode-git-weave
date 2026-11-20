@@ -16,7 +16,7 @@ function webviewHtml(webview, extensionUri, { styles, body, scripts }) {
   const nonce = crypto.randomBytes(16).toString('base64');
   const uri = (...segments) => webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, ...segments));
   const css = ['common.css', ...styles].map((f) => `<link rel="stylesheet" href="${uri('media', f)}">`);
-  const js = ['dom.js', 'tree.js', 'refs.js', ...scripts].map((f) => `<script nonce="${nonce}" src="${uri('media', f)}"></script>`);
+  const js = ['branchColor.js', 'dom.js', 'tree.js', 'refs.js', ...scripts].map((f) => `<script nonce="${nonce}" src="${uri('media', f)}"></script>`);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

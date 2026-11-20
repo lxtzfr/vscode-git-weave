@@ -58,5 +58,11 @@
     return icon;
   }
 
-  window.dom = { el, svgEl, codicon, menuContext, actionButton, busy, busyKey, repoColor, repoIcon };
+  // graphLayout.js lane colors: 'ref' (HEAD's chain) or an index into branchColor.js's palette
+  const laneColor = (c) => (c === 'ref' ? 'var(--vscode-scmGraph-historyItemRefColor)' : window.BRANCH_COLORS[c]);
+
+  // The color of the refs on a commit, as the graph's line and pills there (graphLayout.js); HEAD's commit keeps 'ref'.
+  const commitColor = (commit, isHead) => laneColor(isHead ? 'ref' : window.colorIndexOf(commit));
+
+  window.dom = { el, svgEl, codicon, menuContext, actionButton, busy, busyKey, repoColor, repoIcon, laneColor, commitColor };
 })();

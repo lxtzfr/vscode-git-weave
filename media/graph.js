@@ -3,7 +3,7 @@
 // The selected commits' (or a stash's, clicked in the sidebar view) files in the right pane (changes.js).
 (function () {
   const vscode = acquireVsCodeApi();
-  const { el, svgEl, codicon, menuContext, repoColor } = window.dom;
+  const { el, svgEl, codicon, menuContext, repoColor, laneColor } = window.dom;
   const { changes, refs } = window;
   // Native SCM graph metrics (scmHistory.ts)
   const ROW_H = 22;
@@ -44,8 +44,7 @@
   const canvas = document.getElementById('canvas');
   const empty = document.getElementById('empty');
 
-  // graphLayout.js colors: 'ref' (HEAD's chain) or 0..4 -> scmGraph.foreground1..5
-  const color = (c) => (c === 'ref' ? 'var(--vscode-scmGraph-historyItemRefColor)' : `var(--vscode-scmGraph-foreground${c + 1})`);
+  const color = laneColor;
   const laneX = (lane) => lane * LANE_W + LANE_W;
   const saveState = () => vscode.setState(state);
 
@@ -186,7 +185,7 @@
     for (const pill of row.refs) {
       const kind = pill.kind === 'tag' ? 'tag' : pill.local ? 'local' : 'remote';
       const p = el('span', `label ${kind}${pill.current ? ' current' : ''}`);
-      p.style.background = color(row.graph.color); // the commit's lane: a pill reads as its branch
+      p.style.background = color(row.graph.color); // the commit's color: its pills, its line and the sidebar's icons agree
       p.append(codicon(pill.kind === 'tag' ? 'tag' : 'git-branch'), el('span', 'name', pill.name));
       if (pill.kind === 'branch') {
         if (pill.local) p.append(codicon('device-desktop'));

@@ -33,6 +33,8 @@
     reveal: (hash, root) => post({ type: 'reveal', hash, root }),
     stash: (stash) => post({ type: 'stash', stash }),
     isSelected: (key) => key === state.selectedKey,
+    // A repository's HEAD commit: its refs' icons use HEAD's color, as the graph's pills there.
+    headOf: (root) => (data.groups.find((g) => g.root === root) || {}).head,
     // The changes' tree / list layout, and what their folder rows need (the collapsed set, a re-render).
     filesAsTree: () => state.filesAsTree,
     // One tree / list choice for every file list of the view (changes, worktrees' changes), as in Source Control.

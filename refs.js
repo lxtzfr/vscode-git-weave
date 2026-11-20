@@ -36,7 +36,25 @@ async function loadRefs(repo) {
       refs.tags.push({ name: full.substring(10), type: RefType.Tag, commit });
     }
   }
+  await colorTags(repo, refs);
   return refs;
+}
+
+// A tag has the color of the branch it sits on, as its pill in the graph (the lane's color): colorCommit = the
+// tip of the nearest local branch above it (git name-rev, "main~3" -> main), else its own commit.
+async function colorTags(repo, refs) {
+  const commits = [...new Set(refs.tags.map((t) => t.commit))];
+  const tips = new Map(refs.local.map((b) => [b.name, b.commit]));
+  const tipOf = new Map();
+  for (let i = 0; i < commits.length; i += 200) {
+    const chunk = commits.slice(i, i + 200);
+    const out = await runGit(repo, ['name-rev', '--name-only', '--refs=refs/heads/*', ...chunk]);
+    out.split('\n').forEach((line, j) => {
+      const branch = line.trim().replace(/^heads\//, '').replace(/([~^]\d*)+$/, '');
+      if (chunk[j] && tips.has(branch)) tipOf.set(chunk[j], tips.get(branch));
+    });
+  }
+  for (const tag of refs.tags) tag.colorCommit = tipOf.get(tag.commit) || tag.commit;
 }
 
 module.exports = { loadRefs };

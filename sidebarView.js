@@ -88,6 +88,7 @@ class SidebarView {
       root: repo.rootUri.fsPath,
       name: repoName(repo),
       color: this.selection.colorOf(repo),
+      head: repo.state.HEAD && repo.state.HEAD.commit,
       refs: withRoot(repo, refs),
       worktrees: withRoot(repo, worktrees),
       stashes: withRoot(repo, stashes),

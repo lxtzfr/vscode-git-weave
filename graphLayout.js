@@ -7,12 +7,14 @@
 // Colors follow branches, not columns (as the native SCM graph): a new lane takes the next color,
 // a first parent keeps its child's; HEAD's first-parent chain gets REF_COLOR.
 
+const { colorIndexOf, COLOR_COUNT } = require('./media/branchColor');
+
 const REF_COLOR = 'ref';
-const COLOR_COUNT = 5; // scmGraph.foreground1..5
 
 // commits: display order (children before parents), { hash, parents: [hash], wip, worktree, head, unpushed, trunk }
 // (head: a repository's HEAD; unpushed: on no remote branch; its lines to its parents are dashed, as the WIP row's;
-// worktree: the WIP row of another worktree, in its branch's color; trunk: its repository's key when on its trunk;
+// worktree: the WIP row of another worktree, in its branch's color; colorKey: the commit's own hash when it carries
+// a branch (its color follows it, as the sidebar's icons of those refs); trunk: its repository's key when on its trunk;
 // several repositories can share one graph).
 // Returns one row per commit: { col, color, width, up: [piece], down: [piece] },
 // piece = { x1, x2, color, dashed } in lane units: x1 at the half's top, x2 at its bottom.
@@ -34,7 +36,7 @@ function layoutGraph(commits) {
   const laneOf = (hash) => lanes.findIndex((l) => l && l.hash === hash);
 
   for (let r = 0; r < commits.length; r++) {
-    const { hash, parents, wip, worktree, head, trunk } = commits[r];
+    const { hash, parents, wip, worktree, head, trunk, colorKey } = commits[r];
     const dashed = commits[r].unpushed || wip; // uncommitted changes are not pushed either
     let col = trunk ? trunks.indexOf(trunk) : laneOf(hash);
     let color;
@@ -46,6 +48,7 @@ function layoutGraph(commits) {
     } else {
       color = lanes[col].color;
     }
+    if (colorKey) color = colorIndexOf(colorKey); // a commit with refs has its own color from here down, as its pills and sidebar icons
     if (head || (wip && !worktree)) color = REF_COLOR;
     const row = { col, color, up: [], down: [] };
 

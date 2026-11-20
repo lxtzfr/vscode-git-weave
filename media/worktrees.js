@@ -3,7 +3,7 @@
 // the worktree actions (package.json webview/context). Another worktree's changes unfold under its row, read-only
 // (worktreeFiles.js): a file click opens its HEAD ↔ working tree diff.
 (function () {
-  const { el, codicon, menuContext, actionButton } = window.dom;
+  const { el, codicon, menuContext, actionButton, commitColor } = window.dom;
   const { tree, files } = window;
 
   // Appends the worktree's row, then its changed files when unfolded.
@@ -35,7 +35,9 @@
       chevron.addEventListener('dblclick', (e) => e.stopPropagation());
       div.append(chevron);
     }
-    div.append(codicon(wt.current ? 'check' : 'worktree'), el('span', 'name', wt.name));
+    const icon = codicon(wt.current ? 'check' : 'worktree');
+    if (wt.commit) icon.style.color = commitColor(wt.commit, wt.commit === api.headOf(wt.root)); // the graph pill's color
+    div.append(icon, el('span', 'name', wt.name));
     const branch = wt.slot && !wt.branch ? 'free' : wt.branch || 'detached';
     const changed = foldable ? `${wt.changes.length} changed` : wt.state;
     const description = [wt.issue ? `#${wt.issue.number} ${wt.issue.title}` : '', branch, wt.main ? 'main' : '', changed].filter(Boolean).join(' · ');
