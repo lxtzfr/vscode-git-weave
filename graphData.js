@@ -1,6 +1,6 @@
 const { runGit } = require('./gitRepos');
 const { layoutGraph } = require('./graphLayout');
-const { loadWorktrees } = require('./worktrees');
+const { loadWorktrees, samePath } = require('./worktrees');
 
 const FIELD = '\x1f';
 const RECORD = '\x1e';
@@ -11,9 +11,10 @@ const WIP = '*';
 const LOG_REFS = ['--branches', '--remotes', '--tags', 'HEAD'];
 const logRevs = (others) => [...LOG_REFS, ...others.map((wt) => wt.commit)];
 
-// The repository's other worktrees with a commit (worktrees.js), their changes included.
-async function otherWorktrees(repo) {
-  return (await loadWorktrees(repo)).filter((wt) => !wt.current && wt.commit && wt.state !== 'missing');
+// The repository's other worktrees with a commit (worktrees.js), their changes included. Not those shown as a
+// repository of their own (roots): their WIP row is that repository's.
+async function otherWorktrees(repo, roots = []) {
+  return (await loadWorktrees(repo)).filter((wt) => !wt.current && wt.commit && wt.state !== 'missing' && !roots.some((r) => samePath(r, wt.path)));
 }
 
 async function loadCommits(repo, limit, others) {
@@ -101,9 +102,9 @@ const uncommitted = (n) => `${n} uncommitted change${n > 1 ? 's' : ''}`;
 // One repository's rows, newest first: commit fields, ref pills, plus a WIP row on top of HEAD when
 // the working tree has changes, and one on top of each other worktree's HEAD with changes (read-only:
 // worktreeFiles.js). Hashes become row ids, for the layout to keep repositories apart.
-async function repoRows(repo, limit) {
+async function repoRows(repo, limit, roots) {
   const root = repo.rootUri.fsPath;
-  const others = await otherWorktrees(repo);
+  const others = await otherWorktrees(repo, roots);
   const [{ commits, hasMore }, unpushed, trunk] = await Promise.all([loadCommits(repo, limit, others), unpushedHashes(repo), trunkHashes(repo)]);
   const head = repo.state.HEAD && repo.state.HEAD.commit;
   for (const wt of others.filter((w) => w.changes.length)) {
@@ -148,7 +149,8 @@ function mergeByTime(lists, limit) {
 
 // The graph of the selected repositories: newest `limit` rows of all of them, each with its layout.
 async function loadGraph(repos, limit) {
-  const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit)));
+  const roots = repos.map((r) => r.rootUri.fsPath);
+  const loaded = await Promise.all(repos.map((repo) => repoRows(repo, limit, roots)));
   const { rows, cut } = mergeByTime(loaded.map((l) => l.rows), limit);
   // colorKey: a branch's commit has its own color; a tag keeps its branch's lane color.
   const layout = layoutGraph(rows.map((r) => ({ hash: r.id, parents: r.parents.map((p) => rowId(r.root, p)), wip: r.wip, worktree: r.worktree, head: r.head, unpushed: r.unpushed, colorKey: r.refs.some((p) => p.kind === 'branch') && !r.wip ? r.hash : undefined, trunk: r.trunk ? r.root : undefined })));

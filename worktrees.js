@@ -46,7 +46,9 @@ async function loadWorktrees(repo) {
       return {
         ...wt,
         name: path.basename(wt.path),
-        current: isOpenInThisWindow(wt.path),
+        // The repository's own root counts even when the window is opened on a parent folder: its changes are the
+        // WIP row / Changes sections already, never another worktree's.
+        current: isOpenInThisWindow(wt.path) || samePath(wt.path, repo.rootUri.fsPath),
         slot: !wt.main && marker !== undefined,
         issue: issue && { number: issue.issue, title: issue.title || '', url: githubIssueUrl(repo, issue.issue) },
         state: wt.prunable ? 'missing' : worktreeState(wt.path, changes),
@@ -120,4 +122,4 @@ function registerWorktreeCommands(context, resolve, refresh) {
   );
 }
 
-module.exports = { loadWorktrees, registerWorktreeCommands };
+module.exports = { loadWorktrees, registerWorktreeCommands, samePath };
