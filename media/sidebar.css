@@ -3,9 +3,11 @@
   --page-background: var(--vscode-sideBar-background);
 }
 
+/* The whole page scrolls, the Repositories selector with the sections (not pinned above them) */
 body {
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 /* Repository selector: a summary row, opened into checkboxes */
@@ -44,9 +46,7 @@ body {
 }
 
 #branches {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
+  flex: none;
 }
 
 /* Commit box, as the Source Control view's input and button */
