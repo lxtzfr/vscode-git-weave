@@ -273,7 +273,7 @@ class GraphPanel {
 function statusBarButton() {
   const item = vscode.window.createStatusBarItem('gitWeave.graph', vscode.StatusBarAlignment.Left, 0);
   item.name = 'Git Graph';
-  item.text = '$(git-merge) Graph';
+  item.text = '$(git-merge) Git Weave';
   item.tooltip = 'Toggle Git Graph';
   item.command = 'gitWeave.graph.toggle';
   item.show();

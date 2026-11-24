@@ -13,7 +13,7 @@ JavaScript, no build step.
   - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click;
   - an orange "waiting to be merged" icon on the branches (and worktrees) not merged into the default branch (`origin/HEAD`, else
     `main` / `master`); a squash or rebase merge counts as not merged.
-- **Graph** in an editor tab (the **Graph** status bar button toggles it):
+- **Graph** in an editor tab (the **Git Weave** status bar button toggles it):
   - colored lanes, branch and tag pills, the checked repositories merged by date;
   - one or several commits selected: their files on the right, diffs open in the first editor group.
 - **Window title** (opt-in, `gitWeave.windowTitle.enabled`): the workspace name for a `.code-workspace`, else the
