@@ -1,4 +1,5 @@
-const { runGit } = require('./gitRepos');
+const { runGit, repoName } = require('./gitRepos');
+const { log } = require('./logger');
 const { RefType } = require('./branches');
 
 const FIELD = '\x1f';
@@ -10,9 +11,41 @@ function parseTrack(track) {
   return { ahead: ahead ? Number(ahead[1]) : 0, behind: behind ? Number(behind[1]) : 0, gone: track === 'gone' };
 }
 
+// The branch the others are merged into: the remote's default (origin/HEAD), else a local main / master.
+// Not HEAD: it changes with every checkout, and "merged" would flip with it.
+async function defaultBase(repo) {
+  const candidates = [...(repo.state.remotes || []).map((r) => `refs/remotes/${r.name}/HEAD`), 'refs/heads/main', 'refs/heads/master'];
+  for (const ref of candidates) {
+    try {
+      const target = ref.endsWith('/HEAD') ? (await runGit(repo, ['symbolic-ref', ref])).trim() : ref;
+      const tip = (await runGit(repo, ['rev-parse', '--verify', '--quiet', target])).trim();
+      if (tip) return { ref: target, tip };
+    } catch {
+      // no such ref: next candidate
+    }
+  }
+  return undefined;
+}
+
+// Full names of the branches NOT merged into the default branch: work that only lives there (git ancestry: a squash /
+// rebase merge counts as not merged). Left out: the default branch itself and its copies.
+async function loadUnmerged(repo) {
+  const base = await defaultBase(repo);
+  if (!base) return new Set();
+  const baseName = base.ref.replace(/^refs\/(heads|remotes\/[^/]+)\//, '');
+  const out = await runGit(repo, ['for-each-ref', `--no-merged=${base.ref}`, '--format=%(refname)', 'refs/heads', 'refs/remotes']);
+  const unmerged = new Set();
+  for (const full of out.split('\n').filter(Boolean)) {
+    const name = full.replace(/^refs\/(heads|remotes\/[^/]+)\//, '');
+    if (name !== baseName && name !== 'HEAD') unmerged.add(full);
+  }
+  log.info(`[refs] ${repoName(repo)}: ${unmerged.size} branches not merged into ${base.ref}`);
+  return unmerged;
+}
+
 // Branches and tags of a repository in one git call (the vscode.git API needs one per kind and has
 // no ahead / behind on lists). ref = { name, type, commit, upstream: { remote, name }, ahead, behind,
-// gone, current, remote }, commit = the peeled commit for an annotated tag.
+// gone, current, remote, unmerged }, commit = the peeled commit for an annotated tag.
 async function loadRefs(repo) {
   const remoteNames = (repo.state.remotes || []).map((r) => r.name);
   const splitRemote = (short) => {
@@ -20,18 +53,24 @@ async function loadRefs(repo) {
     return remote ? { remote, name: short.substring(remote.length + 1) } : undefined;
   };
   const format = ['%(refname)', '%(objectname)', '%(*objectname)', '%(upstream:short)', '%(upstream:track,nobracket)', '%(HEAD)'].join(FIELD);
-  const out = await runGit(repo, ['for-each-ref', `--format=${format}`, 'refs/heads', 'refs/remotes', 'refs/tags']);
+  const [out, unmerged] = await Promise.all([
+    runGit(repo, ['for-each-ref', `--format=${format}`, 'refs/heads', 'refs/remotes', 'refs/tags']),
+    loadUnmerged(repo).catch((err) => {
+      log.warn(`[refs] ${repoName(repo)}: unmerged state unavailable:`, err);
+      return new Set();
+    }),
+  ]);
   const refs = { local: [], remote: [], tags: [] };
   for (const line of out.split('\n').filter(Boolean)) {
     const [full, object, peeled, upstream, track, head] = line.split(FIELD);
     const commit = peeled || object;
     if (full.startsWith('refs/heads/')) {
       const name = full.substring(11);
-      refs.local.push({ name, type: RefType.Head, commit, upstream: upstream ? splitRemote(upstream) : undefined, ...parseTrack(track), current: head === '*' });
+      refs.local.push({ name, type: RefType.Head, commit, upstream: upstream ? splitRemote(upstream) : undefined, ...parseTrack(track), current: head === '*', unmerged: unmerged.has(full) });
     } else if (full.startsWith('refs/remotes/')) {
       const name = full.substring(13);
       if (name.endsWith('/HEAD')) continue;
-      refs.remote.push({ name, type: RefType.RemoteHead, commit, remote: (splitRemote(name) || {}).remote });
+      refs.remote.push({ name, type: RefType.RemoteHead, commit, remote: (splitRemote(name) || {}).remote, unmerged: unmerged.has(full) });
     } else {
       refs.tags.push({ name: full.substring(10), type: RefType.Tag, commit });
     }

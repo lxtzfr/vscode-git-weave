@@ -10,7 +10,9 @@ JavaScript, no build step.
   - repository checkboxes: several repositories shown together;
   - commit box (Ctrl+Enter), one message committed in every checked repository;
   - Merge / Staged / Changes: diff on click, stage, unstage, discard;
-  - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click.
+  - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click;
+  - an orange "waiting to be merged" icon on the branches (and worktrees) not merged into the default branch (`origin/HEAD`, else
+    `main` / `master`); a squash or rebase merge counts as not merged.
 - **Graph** in an editor tab (the **Graph** status bar button toggles it):
   - colored lanes, branch and tag pills, the checked repositories merged by date;
   - one or several commits selected: their files on the right, diffs open in the first editor group.

@@ -28,6 +28,7 @@
     const colorCommit = ref.colorCommit || ref.commit; // a tag: its branch's tip
     iconEl.style.color = commitColor(colorCommit, colorCommit === api.headOf(ref.root)); // the graph pill's color
     div.append(iconEl, el('span', 'name', name.substring(name.lastIndexOf('/') + 1)));
+    if (ref.unmerged) div.append(unmergedIcon());
     const track = trackOf(ref);
     if (ref.gone) div.append(el('span', 'description', track));
     else if (track) {
@@ -45,7 +46,7 @@
         runButton(api, 'repo-push', 'Push', 'gitWeave.branches.push', refContext(ref))
       );
     }
-    div.title = [ref.name, ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
+    div.title = [ref.name, ref.unmerged ? 'not merged into the default branch' : '', ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
     div.addEventListener('click', (e) => api.toggle(e, key, () => api.reveal(ref.commit, ref.root)));
     if (ref.type !== RefType.Tag) div.addEventListener('dblclick', () => api.post({ type: 'checkout', ref }));
@@ -58,5 +59,14 @@
     return [ref.ahead ? `↑${ref.ahead}` : '', ref.behind ? `↓${ref.behind}` : ''].filter(Boolean).join(' ');
   }
 
-  window.refs = { row, refContext, fetchButton };
+  // Flags a branch not merged into the default branch (refs.js loadUnmerged); also used by the worktree rows.
+  // No "not merged" codicon exists: the pull request one reads as "waiting to be merged".
+  function unmergedIcon() {
+    const icon = codicon('git-pull-request');
+    icon.classList.add('unmerged-mark');
+    icon.title = 'Not merged into the default branch';
+    return icon;
+  }
+
+  window.refs = { row, refContext, fetchButton, unmergedIcon };
 })();

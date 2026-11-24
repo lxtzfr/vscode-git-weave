@@ -90,7 +90,7 @@ class SidebarView {
       color: this.selection.colorOf(repo),
       head: repo.state.HEAD && repo.state.HEAD.commit,
       refs: withRoot(repo, refs),
-      worktrees: withRoot(repo, worktrees),
+      worktrees: withRoot(repo, worktrees.map((wt) => ({ ...wt, unmerged: refs.local.some((b) => b.name === wt.branch && b.unmerged) }))),
       stashes: withRoot(repo, stashes),
       changes: withRoot(repo, loadChanges(repo)),
     };

@@ -38,6 +38,7 @@
     const icon = codicon(wt.current ? 'check' : 'worktree');
     if (wt.commit) icon.style.color = commitColor(wt.commit, wt.commit === api.headOf(wt.root)); // the graph pill's color
     div.append(icon, el('span', 'name', wt.name));
+    if (wt.unmerged) div.append(window.refs.unmergedIcon()); // its branch holds work not in the default branch
     const branch = wt.slot && !wt.branch ? 'free' : wt.branch || 'detached';
     const changed = foldable ? `${wt.changes.length} changed` : wt.state;
     const description = [wt.issue ? `#${wt.issue.number} ${wt.issue.title}` : '', branch, wt.main ? 'main' : '', changed].filter(Boolean).join(' · ');
@@ -51,7 +52,7 @@
 
     div.title = [
       `${wt.path}${wt.main ? ' (main checkout)' : ''}${wt.current ? ' (this window)' : ''}`,
-      `${branch}${wt.state ? ` · ${wt.state}` : ''}`,
+      `${branch}${wt.unmerged ? ' (not merged)' : ''}${wt.state ? ` · ${wt.state}` : ''}`,
       wt.issue ? `#${wt.issue.number} ${wt.issue.title}` : '',
       wt.lastSession ? `Last session: ${new Date(wt.lastSession).toLocaleString()}` : '',
     ]

@@ -80,6 +80,13 @@ body {
   text-transform: uppercase;
 }
 
+/* Branch not merged into the default branch: orange icon next to its name */
+.tree-row .unmerged-mark {
+  margin-left: 4px;
+  font-size: 12px;
+  color: var(--vscode-list-warningForeground);
+}
+
 .tree-row.ref.current .name,
 .tree-row.worktree.current .name {
   font-weight: 600;
