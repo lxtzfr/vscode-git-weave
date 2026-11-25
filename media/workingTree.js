@@ -1,6 +1,6 @@
 // Uncommitted changes of the sidebar view (sidebar.js), as the Source Control view groups them, from
 // workingChanges.js's loadChanges: Merge / Staged / Changes, one row per file (a list or a folder tree, toggled
-// by the section's button), the commit box under the Changes files.
+// by the section's button), then the other worktrees' changes, and the commit box closing the Changes section.
 // Click: its diff; hover buttons and right-click: stage, unstage, discard (package.json webview/context).
 (function () {
   const { actionButton } = window.dom;
@@ -42,13 +42,14 @@
         commit();
       }
     });
-    commitButton.addEventListener('click', commit);
+    commitButton.addEventListener('click', () => commit());
   }
 
-  function commit() {
+  // worktree: { root, path } of another worktree; none: the checked repositories.
+  function commit(worktree) {
     if (commitButton.disabled) return;
     commitButton.disabled = true;
-    api.post({ type: 'commit', text: message.value });
+    api.post({ type: 'commit', text: message.value, worktree });
   }
 
   function committed(ok) {
@@ -81,14 +82,21 @@
       const actions = group.actions.map(([icon, title, cmd]) => actionButton(icon, title, () => api.command(`gitWeave.changes.${cmd}`, menu)));
       actions.unshift(api.layoutButton());
       const fill = (o, g, key, depth) => fillFiles(o, g.changes[group.id], key, depth);
-      // The commit box closes the Changes section, under its files (it commits what the Staged section holds).
+      // The commit box closes the Changes section: its button commits the checked repositories, a worktree row's
+      // own button that worktree, with the same message.
       const footer = group.id === 'unstaged' ? commitBox : undefined;
-      bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty, footer });
+      const extra = group.id === 'unstaged' ? otherWorktrees : undefined;
+      bySection(out, `§${group.id}`, group.label, (g) => g.changes[group.id], fill, { actions, menu, keepEmpty: group.keepEmpty, footer, extra });
     }
     // Files that left the lists (committed, discarded) leave the selection.
     const keys = new Set(order.map(keyOf));
     for (const k of picked.keys()) if (!keys.has(k)) picked.delete(k);
   }
+
+  const otherWorktrees = {
+    count: (g) => g.changedWorktrees.reduce((n, wt) => n + wt.changes.length, 0),
+    rows: (out, g, key) => window.worktrees.changeRows(out, g, key, api),
+  };
 
   // key: each group and repository collapses its own folders.
   function fillFiles(out, list, key, depth) {
@@ -159,5 +167,5 @@
     }
   }
 
-  window.workingTree = { init, update, sections, committed, keepCaret };
+  window.workingTree = { init, update, sections, commit, committed, keepCaret };
 })();

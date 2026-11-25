@@ -3,7 +3,7 @@ const path = require('path');
 const { log } = require('./logger');
 const { repoName, githubIssueUrl, runGit } = require('./gitRepos');
 const { readSlotMarker, worktreeState } = require('./slotInfo');
-const { loadWorktreeChanges, discardWorktreeFiles } = require('./worktreeFiles');
+const { loadWorktreeChanges, discardWorktreeFiles, commitWorktreeFiles } = require('./worktreeFiles');
 const { confirmDiscard } = require('./workingChanges');
 
 function samePath(a, b) {
@@ -78,11 +78,51 @@ async function remove(item) {
   }
 }
 
-// Another worktree's files back to HEAD. The path comes from a webview: only a worktree of the repository is touched.
-async function discard(repo, worktreePath, files, refresh) {
+// Paths come from a webview: only a worktree of the repository is touched.
+async function findWorktree(repo, worktreePath) {
   const worktrees = parseWorktrees(await runGit(repo, ['worktree', 'list', '--porcelain']));
-  const wt = worktrees.find((w) => samePath(w.path, worktreePath));
-  if (!wt || wt.prunable) return log.warn(`[worktrees] ${repoName(repo)}: discard refused, not one of its worktrees: ${worktreePath}`);
+  const wt = worktrees.find((w) => samePath(w.path, worktreePath) && !w.prunable);
+  if (!wt) log.warn(`[worktrees] ${repoName(repo)}: refused, not one of its worktrees: ${worktreePath}`);
+  return wt;
+}
+
+// Same rules as this window's commit (workingChanges.js), asking too when only a part is staged: the view does not
+// show which files of another worktree are. Returns whether it committed.
+async function commitWorktree(repo, worktreePath, message) {
+  if (!message.trim()) {
+    vscode.window.showWarningMessage('Enter a commit message.');
+    return false;
+  }
+  const wt = await findWorktree(repo, worktreePath);
+  if (!wt) return false;
+  const files = (await loadWorktreeChanges(wt.path)) || [];
+  const name = path.basename(wt.path);
+  if (!files.length) {
+    vscode.window.showInformationMessage(`There are no changes to commit in ${name}.`);
+    return false;
+  }
+  if (files.some((f) => f.status === '!')) {
+    vscode.window.showWarningMessage(`Resolve the conflicts of ${name} before committing.`);
+    return false;
+  }
+  const staged = files.filter((f) => f.staged).length;
+  let stageAll = false;
+  if (files.some((f) => f.unstaged)) {
+    const all = 'Stage All and Commit';
+    const only = 'Commit Staged Only';
+    const question = staged ? `${name} has both staged and unstaged changes. What should be committed?` : `There are no staged changes in ${name}. Stage all its changes and commit them?`;
+    const answer = await vscode.window.showWarningMessage(question, { modal: true }, ...(staged ? [only, all] : [all]));
+    if (!answer) return false;
+    stageAll = answer === all;
+  }
+  await commitWorktreeFiles(wt.path, message, stageAll);
+  return true;
+}
+
+// Another worktree's files back to HEAD.
+async function discard(repo, worktreePath, files, refresh) {
+  const wt = await findWorktree(repo, worktreePath);
+  if (!wt) return;
   if (!files.length || !(await confirmDiscard(files, path.basename(wt.path)))) return;
   try {
     await discardWorktreeFiles(wt.path, files.map((f) => f.path));
@@ -122,4 +162,4 @@ function registerWorktreeCommands(context, resolve, refresh) {
   );
 }
 
-module.exports = { loadWorktrees, registerWorktreeCommands, samePath };
+module.exports = { loadWorktrees, commitWorktree, registerWorktreeCommands, samePath };

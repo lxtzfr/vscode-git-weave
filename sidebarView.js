@@ -2,7 +2,7 @@ const vscode = require('vscode');
 const { log } = require('./logger');
 const { repoName, sortedRepositories, errorText, withRoot } = require('./gitRepos');
 const { loadRefs } = require('./refs');
-const { loadWorktrees } = require('./worktrees');
+const { loadWorktrees, commitWorktree, samePath } = require('./worktrees');
 const { loadStashes } = require('./stashes');
 const { checkoutRef, RefType } = require('./branches');
 const { loadChanges, commit } = require('./workingChanges');
@@ -13,6 +13,16 @@ const VIEW_ID = 'gitWeave.sidebar';
 // Our own Source Control (activity bar): repository checkboxes, commit box, then the checked repositories'
 // changes, branches, worktrees, stashes and tags (repoSelection.js). A branch or worktree click selects its commit in the graph, a stash click
 // shows its files there, a changed file opens its diff.
+// Each group's other worktrees to list under Changes, once each: not one checked as a repository (its changes are
+// there already), nor twice when two checked repositories are worktrees of the same one.
+function listChangedWorktrees(groups) {
+  const listed = groups.map((g) => g.root);
+  for (const group of groups) {
+    group.changedWorktrees = group.worktrees.filter((wt) => !wt.current && wt.changes.length && !listed.some((p) => samePath(p, wt.path)));
+    listed.push(...group.changedWorktrees.map((wt) => wt.path));
+  }
+}
+
 class SidebarView {
   constructor(context, selection, graph) {
     this.context = context;
@@ -60,6 +70,7 @@ class SidebarView {
     try {
       const groups = await Promise.all(selected.map((repo) => this.loadRepo(repo)));
       if (id !== this.loadId) return; // a newer load is running
+      listChangedWorktrees(groups);
       log.info(`[sidebar] ${names}: ${groups.map((g) => `${g.name} ${g.refs.local.length} local, ${g.worktrees.length} worktrees, ${g.stashes.length} stashes`).join('; ')}`);
       // By root: the git API returns new repository objects on every `repositories` read.
       const selectedRoots = new Set(selected.map((r) => r.rootUri.fsPath));
@@ -117,7 +128,7 @@ class SidebarView {
         return;
       }
       case 'commit':
-        return this.commit(msg.text);
+        return this.commit(msg.text, msg.worktree);
       case 'command':
         return runWebviewCommand(msg, (m) => this.post(m), 'sidebar');
       case 'checkout': {
@@ -129,13 +140,19 @@ class SidebarView {
     }
   }
 
-  async commit(text) {
-    const repos = this.selection.repos();
+  // worktree: { root, path }, another worktree of a repository; none: the checked repositories.
+  async commit(text, worktree) {
+    const repos = worktree ? [this.selection.byRoot(worktree.root)].filter(Boolean) : this.selection.repos();
     let ok = false;
     try {
-      ok = !!repos.length && (await commit(repos, text));
+      if (worktree) ok = !!repos.length && (await commitWorktree(repos[0], worktree.path, text));
+      else ok = !!repos.length && (await commit(repos, text));
+      if (ok && worktree) {
+        for (const repo of this.selection.repos()) repo.inputBox.value = '';
+        this.selection.refresh(); // another worktree's files are not watched
+      }
     } catch (err) {
-      log.error(`[sidebar] ${repos.map(repoName).join(', ')}: commit failed:`, err);
+      log.error(`[sidebar] ${worktree ? worktree.path : repos.map(repoName).join(', ')}: commit failed:`, err);
       vscode.window.showErrorMessage(`Commit failed: ${errorText(err)}`);
     }
     this.post({ type: 'committed', ok });

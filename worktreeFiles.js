@@ -4,7 +4,7 @@ const path = require('path');
 const { execFile, spawn } = require('child_process');
 const { log } = require('./logger');
 
-// Another worktree's files, read-only: its changes may not belong to an open repository (vscode.git's own
+// Another worktree's files, opened read-only: its changes may not belong to an open repository (vscode.git's own
 // git: URIs need one), and a content provider's documents cannot be edited or saved.
 const SCHEME = 'git-weave-wt';
 
@@ -48,7 +48,8 @@ function parseStatus(out) {
   const files = [];
   for (let i = 0; i < parts.length; ) {
     const xy = parts[i].substring(0, 2);
-    const file = { status: letter(xy), path: parts[i++].substring(3), inHead: CONFLICTS.has(xy) ? CONFLICTS_IN_HEAD.has(xy) : xy !== '??' && xy[0] !== 'A' };
+    // XY: X the index against HEAD, Y the disk against the index.
+    const file = { status: letter(xy), staged: xy !== '??' && xy[0] !== ' ', unstaged: xy[1] !== ' ', path: parts[i++].substring(3), inHead: CONFLICTS.has(xy) ? CONFLICTS_IN_HEAD.has(xy) : xy !== '??' && xy[0] !== 'A' };
     if (xy[0] === 'R' || xy[0] === 'C') file.oldPath = parts[i++];
     files.push(file);
   }
@@ -88,6 +89,12 @@ async function discardWorktreeFiles(worktreePath, paths) {
   return files.length;
 }
 
+async function commitWorktreeFiles(worktreePath, message, stageAll) {
+  log.info(`[worktreeFiles] ${worktreePath}: commit "${message.split('\n')[0]}"${stageAll ? ' (staging all)' : ''}`);
+  if (stageAll) await git(worktreePath, ['add', '-A']);
+  await git(worktreePath, ['commit', '-m', message]);
+}
+
 // side: { ref, path }, no ref: the file on disk.
 function worktreeUri(worktreePath, side) {
   return vscode.Uri.from({ scheme: SCHEME, path: `/${side.path}`, query: JSON.stringify({ worktree: worktreePath, ref: side.ref }) });
@@ -109,4 +116,4 @@ function registerWorktreeDocuments(context) {
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider(SCHEME, { provideTextDocumentContent: provide }));
 }
 
-module.exports = { loadWorktreeChanges, discardWorktreeFiles, worktreeUri, registerWorktreeDocuments };
+module.exports = { loadWorktreeChanges, discardWorktreeFiles, commitWorktreeFiles, worktreeUri, registerWorktreeDocuments };

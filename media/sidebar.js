@@ -11,12 +11,11 @@
   const reposToggle = document.getElementById('repos-toggle');
   const reposList = document.getElementById('repos-list');
   const branchesEl = document.getElementById('branches');
-  const state = Object.assign({ collapsed: ['§tags'], expanded: [], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
+  const state = Object.assign({ collapsed: ['§tags'], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
   const collapsed = new Set(state.collapsed);
-  const expanded = new Set(state.expanded); // rows closed by default (a worktree's changes), the user opened
   let data; // { repos: [{ root, name, branch, selected }], groups: [{ root, name, refs, worktrees, stashes, changes }] }
   const post = (msg) => vscode.postMessage(msg);
-  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed], expanded: [...expanded] });
+  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed] });
 
   // What row builders get: post a message, reveal a commit, select a row (highlighted until another one).
   const api = {
@@ -37,14 +36,13 @@
     headOf: (root) => (data.groups.find((g) => g.root === root) || {}).head,
     // The changes' tree / list layout, and what their folder rows need (the collapsed set, a re-render).
     filesAsTree: () => state.filesAsTree,
-    // One tree / list choice for every file list of the view (changes, worktrees' changes), as in Source Control.
+    // One tree / list choice for every file list of the view, as in Source Control.
     layoutButton: () =>
       files.layoutButton(state.filesAsTree, () => {
         state.filesAsTree = !state.filesAsTree;
         changed();
       }),
     collapsed,
-    expanded,
     changed: () => changed(),
     // A click on a row: select it and run show (reveal in the graph), or deselect it (and the graph's selection)
     // when it already is. The clicks of a double-click (e.detail > 1) never deselect: the double-click acts on the row.
@@ -137,7 +135,7 @@
       rowActions: (g) => [refs.fetchButton(api, { root: g.root })],
     });
     const createWorktree = actionButton('add', 'Create Worktree…', () => api.command('gitWeave.worktrees.create', {}));
-    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => g.worktrees.forEach((wt) => worktrees.rows(o, wt, depth, api)), { actions: [api.layoutButton(), createWorktree] });
+    bySection(out, '§worktrees', 'Worktrees', (g) => g.worktrees, (o, g, key, depth) => flat(o, g.worktrees, worktrees.row, depth), { actions: [createWorktree] });
     const stashMenu = { webviewSection: 'stashes' };
     const createStash = actionButton('add', 'Stash Changes…', () => api.command('gitWeave.stashes.create', stashMenu));
     bySection(out, '§stashes', 'Stashes', (g) => g.stashes, (o, g, key, depth) => flat(o, g.stashes, stashes.row, depth), { actions: [createStash], menu: stashMenu, keepEmpty: true });
@@ -148,14 +146,16 @@
   // A section filled from each checked repository: fill(out, group, key, depth) appends a repository's
   // rows, under a sub-folder per repository when several are checked. options: { actions, menu, keepEmpty,
   // noCount, footer }: noCount hides the section's number (the branches', whose lists show themselves);
-  // footer: a node shown under the section's rows while it is open.
-  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer, rowActions } = {}) {
+  // extra: { count(group), rows(out, group, key) }, rows of their own after the repositories' ones; footer: a node
+  // closing the section while it is open.
+  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer, rowActions, extra } = {}) {
     const groups = data.groups.filter((g) => itemsOf(g).length);
-    const count = groups.reduce((n, g) => n + itemsOf(g).length, 0);
+    const count = groups.reduce((n, g) => n + itemsOf(g).length, 0) + (extra ? data.groups.reduce((n, g) => n + extra.count(g), 0) : 0);
     if (!count && !keepEmpty) return;
     out.push(sectionRow(key, label, 0, noCount ? undefined : count, actions, menu));
     if (collapsed.has(key)) return;
     sectionRows(out, key, groups, fill, menu, rowActions);
+    if (extra) data.groups.forEach((g) => extra.rows(out, g, key));
     if (footer) out.push(footer);
   }
 

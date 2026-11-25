@@ -1,54 +1,61 @@
 // Worktree rows of the sidebar view (sidebar.js), from worktrees.js's loadWorktrees. Click: select the
 // worktree's commit in the graph; double-click: open it in a new window; hover buttons and right-click:
-// the worktree actions (package.json webview/context). Another worktree's changes unfold under its row, read-only
-// (worktreeFiles.js): a file click opens its HEAD ↔ working tree diff.
+// the worktree actions (package.json webview/context). Another worktree's changes show in the Changes section,
+// under "repository (worktree)", where they can be committed; their files are read-only (worktreeFiles.js): a click
+// opens the HEAD ↔ working tree diff.
 (function () {
-  const { el, codicon, menuContext, actionButton, commitColor } = window.dom;
+  const { el, codicon, menuContext, actionButton, commitColor, repoColor } = window.dom;
   const { tree, files } = window;
 
-  // Appends the worktree's row, then its changed files when unfolded.
-  function rows(out, wt, depth, api) {
-    const key = `worktree:${wt.root}:${wt.path}`;
-    // This window's own changes are the Changes sections already.
-    const foldable = !wt.current && wt.changes.length > 0;
-    const open = foldable && api.expanded.has(key);
-    out.push(row(wt, key, depth, api, foldable, open));
-    if (!open) return;
-    const list = wt.changes.map((change) => ({ ...change, root: wt.root }));
-    const rowOf = (file, d, folder) => fileRow(file, d, folder, api);
-    out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth: depth + 1, onToggle: api.changed, rowOf }));
+  // This window's own changes are the Changes sections already.
+  const hasOtherChanges = (wt) => !wt.current && wt.changes.length > 0;
+
+  const menuOf = (wt) => ({ webviewSection: 'worktree', worktree: wt, root: wt.root, openable: !wt.current, deletable: !wt.main && !wt.current, hasIssue: !!(wt.issue && wt.issue.url), hasChanges: hasOtherChanges(wt) });
+  const openButton = (api, ctx) => actionButton('empty-window', 'Open in New Window', () => api.command('gitWeave.worktrees.openNewWindow', ctx));
+  const discardAllButton = (api, ctx) => actionButton('discard', 'Discard All Changes', () => api.command('gitWeave.worktrees.discardAll', ctx));
+
+  // A repository's part of the Changes section for its other worktrees (group.changedWorktrees, sidebarView.js):
+  // one foldable "repository (worktree)" row each, then its files.
+  function changeRows(out, group, sectionKey, api) {
+    for (const wt of group.changedWorktrees) {
+      const key = `${sectionKey}/worktree:${wt.path}`;
+      const ctx = menuOf(wt);
+      const header = tree.folderRow({ label: `${group.name} (${wt.name})`, path: key, depth: 1 }, api.collapsed, api.changed, ['repo', 'repo'], [
+        openButton(api, ctx),
+        discardAllButton(api, ctx),
+        actionButton('check', 'Commit This Worktree (message below)', () => window.workingTree.commit({ root: wt.root, path: wt.path })),
+      ]);
+      header.querySelector('.codicon-repo').style.color = repoColor(group.color);
+      header.title = wt.path;
+      menuContext(header, ctx);
+      out.push(header);
+      if (api.collapsed.has(key)) continue;
+      const list = wt.changes.map((change) => ({ ...change, root: wt.root }));
+      const rowOf = (file, depth, folder) => fileRow(file, depth, folder, api);
+      out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth: 2, onToggle: api.changed, rowOf }));
+    }
   }
 
-  function row(wt, key, depth, api, foldable, open) {
+  function row(wt, depth, api) {
+    const key = `worktree:${wt.root}:${wt.path}`;
+    const changedHere = hasOtherChanges(wt);
     const div = el('div', `tree-row worktree${wt.current ? ' current' : ''}`);
     if (api.isSelected(key)) div.classList.add('selected');
-    tree.indent(div, depth, !foldable);
-    if (foldable) {
-      const chevron = codicon(open ? 'chevron-down' : 'chevron-right');
-      chevron.title = open ? 'Hide Changes' : 'Show Changes (read-only)';
-      chevron.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (open) api.expanded.delete(key);
-        else api.expanded.add(key);
-        api.changed();
-      });
-      chevron.addEventListener('dblclick', (e) => e.stopPropagation());
-      div.append(chevron);
-    }
+    tree.indent(div, depth, true);
     const icon = codicon(wt.current ? 'check' : 'worktree');
     if (wt.commit) icon.style.color = commitColor(wt.commit, wt.commit === api.headOf(wt.root)); // the graph pill's color
     div.append(icon, el('span', 'name', wt.name));
     if (wt.unmerged) div.append(window.refs.unmergedIcon()); // its branch holds work not in the default branch
     const branch = wt.slot && !wt.branch ? 'free' : wt.branch || 'detached';
-    const changed = foldable ? `${wt.changes.length} changed` : wt.state;
+    const changed = changedHere ? `${wt.changes.length} changed` : wt.state;
     const description = [wt.issue ? `#${wt.issue.number} ${wt.issue.title}` : '', branch, wt.main ? 'main' : '', changed].filter(Boolean).join(' · ');
     div.append(el('span', 'description', description));
 
-    const ctx = { webviewSection: 'worktree', worktree: wt, root: wt.root, openable: !wt.current, deletable: !wt.main && !wt.current, hasIssue: !!(wt.issue && wt.issue.url), hasChanges: foldable };
+    const ctx = menuOf(wt);
     menuContext(div, ctx);
     if (ctx.hasIssue) div.append(actionButton('issues', 'Open Ticket', () => api.command('gitWeave.worktrees.openIssue', ctx)));
-    if (ctx.openable) div.append(actionButton('empty-window', 'Open in New Window', () => api.command('gitWeave.worktrees.openNewWindow', ctx)));
-    if (foldable) div.append(actionButton('discard', 'Discard All Changes', () => api.command('gitWeave.worktrees.discardAll', ctx)));
+    if (ctx.openable) div.append(openButton(api, ctx));
+    if (changedHere) div.append(discardAllButton(api, ctx));
 
     div.title = [
       `${wt.path}${wt.main ? ' (main checkout)' : ''}${wt.current ? ' (this window)' : ''}`,
@@ -61,7 +68,7 @@
     // With changes: its WIP row (graphData.js hash: WIP + path), else its commit.
     div.addEventListener('click', (e) =>
       api.toggle(e, key, () => {
-        if (foldable) api.reveal(`*${wt.path}`, wt.root);
+        if (changedHere) api.reveal(`*${wt.path}`, wt.root);
         else if (wt.commit) api.reveal(wt.commit, wt.root, wt.branch);
       })
     );
@@ -88,5 +95,5 @@
     });
   }
 
-  window.worktrees = { rows };
+  window.worktrees = { row, changeRows };
 })();

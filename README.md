@@ -11,7 +11,8 @@ JavaScript, no build step.
 - **Git Weave** in the activity bar, a webview:
   - repository checkboxes: several repositories shown together;
   - commit box (Ctrl+Enter), one message committed in every checked repository;
-  - Merge / Staged / Changes: diff on click, stage, unstage, discard;
+  - Merge / Staged / Changes: diff on click, stage, unstage, discard; other worktrees' changes under
+    **repository (worktree)**, each committed with its own button;
   - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click;
   - an orange "waiting to be merged" icon on the branches (and worktrees) not merged into the default branch (`origin/HEAD`, else
     `main` / `master`); a squash or rebase merge counts as not merged.
