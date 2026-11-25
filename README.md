@@ -6,6 +6,8 @@ JavaScript, no build step.
 
 ## Features
 
+- **Nested repositories** opened automatically, at least two folder levels deep (more with
+  `git.repositoryScanMaxDepth`), without changing any setting. Source Control lists them too.
 - **Git Weave** in the activity bar, a webview:
   - repository checkboxes: several repositories shown together;
   - commit box (Ctrl+Enter), one message committed in every checked repository;

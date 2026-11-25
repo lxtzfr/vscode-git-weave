@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const { log } = require('./logger');
 const { RepoSelection } = require('./repoSelection');
+const { registerRepoDiscovery } = require('./repoDiscovery');
 const { registerGraphView } = require('./graphView');
 const { registerSidebarView } = require('./sidebarView');
 const { registerEmptyDocuments } = require('./commitFiles');
@@ -31,6 +32,7 @@ async function activate(context) {
   const graph = registerGraphView(context, git, selection);
   registerSidebarView(context, selection, graph);
   registerWindowTitle(context, git);
+  registerRepoDiscovery(context, git);
 }
 
 function deactivate() {}
