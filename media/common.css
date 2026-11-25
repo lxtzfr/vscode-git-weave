@@ -12,6 +12,8 @@ body {
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   background: var(--page-background, var(--vscode-editor-background));
+  /* A drag or Shift+click on rows would paint them with the blue text selection, unlike a native tree. */
+  user-select: none;
 }
 
 .tree-row {
