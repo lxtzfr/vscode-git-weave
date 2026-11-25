@@ -48,8 +48,7 @@ function parseStatus(out) {
   const files = [];
   for (let i = 0; i < parts.length; ) {
     const xy = parts[i].substring(0, 2);
-    // XY: X the index against HEAD, Y the disk against the index.
-    const file = { status: letter(xy), staged: xy !== '??' && xy[0] !== ' ', unstaged: xy[1] !== ' ', path: parts[i++].substring(3), inHead: CONFLICTS.has(xy) ? CONFLICTS_IN_HEAD.has(xy) : xy !== '??' && xy[0] !== 'A' };
+    const file = { status: letter(xy), path: parts[i++].substring(3), inHead: CONFLICTS.has(xy) ? CONFLICTS_IN_HEAD.has(xy) : xy !== '??' && xy[0] !== 'A' };
     if (xy[0] === 'R' || xy[0] === 'C') file.oldPath = parts[i++];
     files.push(file);
   }
@@ -89,10 +88,27 @@ async function discardWorktreeFiles(worktreePath, paths) {
   return files.length;
 }
 
-async function commitWorktreeFiles(worktreePath, message, stageAll) {
-  log.info(`[worktreeFiles] ${worktreePath}: commit "${message.split('\n')[0]}"${stageAll ? ' (staging all)' : ''}`);
-  if (stageAll) await git(worktreePath, ['add', '-A']);
-  await git(worktreePath, ['commit', '-m', message]);
+// Commits these files as they are on disk, and nothing else: what another session staged stays staged (WebStorm's
+// commit). git refuses a partial commit during a merge: then every change has to be checked.
+async function commitWorktreeFiles(worktreePath, message, paths) {
+  const changes = await loadWorktreeChanges(worktreePath);
+  if (!changes) throw new Error(`git status failed in ${worktreePath}`);
+  const wanted = new Set(paths);
+  const files = changes.filter((f) => wanted.has(f.path));
+  if (!files.length) throw new Error('The checked files have no changes any more.');
+  const merging = await git(worktreePath, ['rev-parse', '-q', '--verify', 'MERGE_HEAD']).then(() => true, () => false);
+  if (changes.some((f) => f.status === '!')) throw new Error('Resolve the conflicts before committing.');
+  if (merging && files.length !== changes.length) throw new Error('A merge is in progress: check all the files to commit it.');
+  log.info(`[worktreeFiles] ${worktreePath}: commit ${files.length}/${changes.length} files "${message.split('\n')[0]}"`);
+  const untracked = files.filter((f) => f.status === 'U').map((f) => f.path);
+  if (untracked.length) await gitPaths(worktreePath, ['add'], untracked);
+  if (merging) {
+    await git(worktreePath, ['add', '-A']);
+    return git(worktreePath, ['commit', '-m', message]);
+  }
+  // A rename is committed with both its paths.
+  const all = files.flatMap((f) => (f.status === 'R' ? [f.oldPath, f.path] : [f.path]));
+  await gitPaths(worktreePath, ['commit', '-m', message], all);
 }
 
 // side: { ref, path }, no ref: the file on disk.

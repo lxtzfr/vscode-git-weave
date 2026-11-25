@@ -40,7 +40,9 @@ body {
   padding-left: 24px;
 }
 
-.repo-check input {
+.repo-check input,
+.tree-row input.check {
+  flex: none;
   margin: 0 4px 0 0;
   accent-color: var(--vscode-checkbox-selectBackground, var(--vscode-focusBorder));
 }

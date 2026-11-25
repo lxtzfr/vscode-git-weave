@@ -1,5 +1,5 @@
 // Sidebar view (sidebarView.js), our own Source Control: the repository checkboxes, the commit box, then
-// the checked repositories' sections (Merge / Staged / Changes, Local, Remote per remote, Worktrees,
+// the checked repositories' sections (Merge Changes, Changes, Local, Remote per remote, Worktrees,
 // Stashes, Tags), each collapsible, one sub-folder per repository when several are checked, "feature/x"
 // names as folders. Rows come from workingTree.js, refs.js, worktrees.js and stashes.js; right-click menus
 // are package.json webview/context. A ref, worktree or stash click acts in the graph tab, through the extension.
@@ -11,11 +11,12 @@
   const reposToggle = document.getElementById('repos-toggle');
   const reposList = document.getElementById('repos-list');
   const branchesEl = document.getElementById('branches');
-  const state = Object.assign({ collapsed: ['§tags'], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
+  const state = Object.assign({ collapsed: ['§tags'], checked: [], selectedKey: undefined, reposOpen: false, filesAsTree: false }, vscode.getState());
   const collapsed = new Set(state.collapsed);
+  const checked = new Set(state.checked); // files to commit (workingTree.js)
   let data; // { repos: [{ root, name, branch, selected }], groups: [{ root, name, refs, worktrees, stashes, changes }] }
   const post = (msg) => vscode.postMessage(msg);
-  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed] });
+  const saveState = () => vscode.setState({ ...state, collapsed: [...collapsed], checked: [...checked] });
 
   // What row builders get: post a message, reveal a commit, select a row (highlighted until another one).
   const api = {
@@ -43,6 +44,7 @@
         changed();
       }),
     collapsed,
+    checked,
     changed: () => changed(),
     // A click on a row: select it and run show (reveal in the graph), or deselect it (and the graph's selection)
     // when it already is. The clicks of a double-click (e.detail > 1) never deselect: the double-click acts on the row.
@@ -63,7 +65,8 @@
 
   function render(msg) {
     data = msg;
-    workingTree.update(msg.commit);
+    workingTree.update(msg.commit, msg.groups);
+    saveState();
     renderRepos();
     renderTree();
   }
@@ -145,28 +148,31 @@
 
   // A section filled from each checked repository: fill(out, group, key, depth) appends a repository's
   // rows, under a sub-folder per repository when several are checked. options: { actions, menu, keepEmpty,
-  // noCount, footer }: noCount hides the section's number (the branches', whose lists show themselves);
+  // noCount, footer, decorate(row, group), decorateSection(row) }: noCount hides the section's number (the branches', whose lists show themselves);
   // extra: { count(group), rows(out, group, key) }, rows of their own after the repositories' ones; footer: a node
   // closing the section while it is open.
-  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer, rowActions, extra } = {}) {
+  function bySection(out, key, label, itemsOf, fill, { actions, menu, keepEmpty, noCount, footer, rowActions, extra, decorate, decorateSection } = {}) {
     const groups = data.groups.filter((g) => itemsOf(g).length);
     const count = groups.reduce((n, g) => n + itemsOf(g).length, 0) + (extra ? data.groups.reduce((n, g) => n + extra.count(g), 0) : 0);
     if (!count && !keepEmpty) return;
-    out.push(sectionRow(key, label, 0, noCount ? undefined : count, actions, menu));
+    const title = sectionRow(key, label, 0, noCount ? undefined : count, actions, menu);
+    if (decorateSection) decorateSection(title);
+    out.push(title);
     if (collapsed.has(key)) return;
-    sectionRows(out, key, groups, fill, menu, rowActions);
+    sectionRows(out, key, groups, fill, menu, rowActions, decorate);
     if (extra) data.groups.forEach((g) => extra.rows(out, g, key));
     if (footer) out.push(footer);
   }
 
   // rowActions(group) -> the hover buttons of a repository's sub-folder.
-  function sectionRows(out, key, groups, fill, menu, rowActions) {
+  function sectionRows(out, key, groups, fill, menu, rowActions, decorate) {
     for (const g of groups) {
       const sub = `${key}/${g.root}`;
       const row = tree.folderRow({ label: g.name, path: sub, depth: 1 }, collapsed, changed, ['repo', 'repo'], rowActions && rowActions(g));
       row.querySelector('.codicon-repo').style.color = repoColor(g.color);
       row.title = g.root;
       if (menu) menuContext(row, { ...menu, root: g.root });
+      if (decorate) decorate(row, g);
       out.push(row);
       if (!collapsed.has(sub)) fill(out, g, sub, 2);
     }

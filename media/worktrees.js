@@ -1,8 +1,8 @@
 // Worktree rows of the sidebar view (sidebar.js), from worktrees.js's loadWorktrees. Click: select the
 // worktree's commit in the graph; double-click: open it in a new window; hover buttons and right-click:
 // the worktree actions (package.json webview/context). Another worktree's changes show in the Changes section,
-// under "repository (worktree)", where they can be committed; their files are read-only (worktreeFiles.js): a click
-// opens the HEAD ↔ working tree diff.
+// under "repository (worktree)", checkable for the commit as the others; their files are read-only
+// (worktreeFiles.js): a click opens the HEAD ↔ working tree diff.
 (function () {
   const { el, codicon, menuContext, actionButton, commitColor, repoColor } = window.dom;
   const { tree, files } = window;
@@ -16,23 +16,24 @@
 
   // A repository's part of the Changes section for its other worktrees (group.changedWorktrees, sidebarView.js):
   // one foldable "repository (worktree)" row each, then its files.
-  function changeRows(out, group, sectionKey, api) {
+  function changeRows(out, group, sectionKey, api, addCheckbox, checkbox) {
     for (const wt of group.changedWorktrees) {
       const key = `${sectionKey}/worktree:${wt.path}`;
       const ctx = menuOf(wt);
-      const header = tree.folderRow({ label: `${group.name} (${wt.name})`, path: key, depth: 1 }, api.collapsed, api.changed, ['repo', 'repo'], [
-        openButton(api, ctx),
-        discardAllButton(api, ctx),
-        actionButton('check', 'Commit This Worktree (message below)', () => window.workingTree.commit({ root: wt.root, path: wt.path })),
-      ]);
+      const header = tree.folderRow({ label: `${group.name} (${wt.name})`, path: key, depth: 1 }, api.collapsed, api.changed, ['repo', 'repo'], [openButton(api, ctx), discardAllButton(api, ctx)]);
       header.querySelector('.codicon-repo').style.color = repoColor(group.color);
       header.title = wt.path;
       menuContext(header, ctx);
+      const list = wt.changes.map((change) => ({ ...change, root: wt.root }));
+      addCheckbox(header, list);
       out.push(header);
       if (api.collapsed.has(key)) continue;
-      const list = wt.changes.map((change) => ({ ...change, root: wt.root }));
-      const rowOf = (file, depth, folder) => fileRow(file, depth, folder, api);
-      out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth: 2, onToggle: api.changed, rowOf }));
+      const rowOf = (file, depth, folder) => {
+        const row = fileRow(file, depth, folder, api);
+        row.querySelector('.codicon').before(checkbox([file]));
+        return row;
+      };
+      out.push(...files.rows(list, { asTree: api.filesAsTree(), collapsed: api.collapsed, key, depth: 2, onToggle: api.changed, rowOf, decorateFolder: addCheckbox }));
     }
   }
 
@@ -76,7 +77,7 @@
     return div;
   }
 
-  // No changeGroup: this window's stage / unstage / discard menus stay off another worktree's files.
+  // No changeGroup: the conflict menus stay off another worktree's files.
   function fileRow(file, depth, folder, api) {
     const key = `worktree-file:${file.root}:${file.worktree}:${file.path}`;
     const ctx = { file, root: file.root };

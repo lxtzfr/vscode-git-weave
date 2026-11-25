@@ -3,38 +3,33 @@ const path = require('path');
 const { log } = require('./logger');
 const { repoName, errorText } = require('./gitRepos');
 const { statusLetter, relativePath } = require('./commitFiles');
+const { loadWorktreeChanges, discardWorktreeFiles } = require('./worktreeFiles');
 
-// The git URI ref of the index (as vscode.git's own diffs use it)
-const INDEX = '~';
-
-// The repository's uncommitted changes as the Source Control view groups them, in commitFiles.js's
-// file shape (its sides make openDiff show HEAD ↔ index for staged files, index ↔ disk for the others).
-function loadChanges(repo) {
-  const { indexChanges, workingTreeChanges, mergeChanges, HEAD } = repo.state;
-  const toFile = (change, group) => {
-    const status = statusLetter(change.status);
+// Conflicts, from vscode.git: they open the file itself (its markers), as the native view does.
+function mergeFiles(repo) {
+  return repo.state.mergeChanges.map((change) => {
     const rel = relativePath(repo, change.uri);
-    const oldRel = change.originalUri && relativePath(repo, change.originalUri);
-    const oldPath = oldRel !== rel ? oldRel : undefined;
-    const added = status === 'A' || status === 'U';
-    const deleted = status === 'D';
-    if (group === 'staged') {
-      return { status, path: rel, oldPath, group, left: added ? null : { ref: 'HEAD', path: oldPath || rel }, right: deleted ? null : { ref: INDEX, path: rel } };
-    }
-    // Conflicts open the file itself (its markers), as the native view does.
-    return { status, path: rel, oldPath, group, left: added || group === 'merge' ? null : { ref: INDEX, path: rel }, right: deleted ? null : { path: rel } };
-  };
+    const status = statusLetter(change.status);
+    return { status, path: rel, group: 'merge', left: null, right: status === 'D' ? null : { path: rel } };
+  });
+}
+
+// The repository's uncommitted changes as the sidebar shows them (WebStorm: no staging area): the conflicts, then
+// one HEAD ↔ working tree entry per file, staged or not, in commitFiles.js's file shape. `wip`: this checkout's own
+// files, editable and discardable to HEAD.
+async function loadChanges(repo) {
+  const { HEAD, mergeChanges } = repo.state;
+  const conflicts = new Set(mergeChanges.map((c) => relativePath(repo, c.uri)));
+  const files = (await loadWorktreeChanges(repo.rootUri.fsPath)) || [];
   return {
-    merge: mergeChanges.map((c) => toFile(c, 'merge')),
-    staged: indexChanges.map((c) => toFile(c, 'staged')),
-    unstaged: workingTreeChanges.map((c) => toFile(c, 'unstaged')),
+    merge: mergeFiles(repo),
+    files: files.filter((f) => f.status !== '!' && !conflicts.has(f.path)).map(({ worktree, ...f }) => ({ ...f, wip: true })),
     branch: HEAD && (HEAD.name || (HEAD.commit && HEAD.commit.substring(0, 7))),
     message: repo.inputBox.value,
   };
 }
 
 const absolute = (repo, file) => path.join(repo.rootUri.fsPath, file.path);
-const groupFiles = (repo, group) => loadChanges(repo)[group];
 
 // where: the worktree the files are in, when not this window's.
 async function confirmDiscard(files, where) {
@@ -44,7 +39,7 @@ async function confirmDiscard(files, where) {
   return (await vscode.window.showWarningMessage(message, { modal: true }, 'Discard')) === 'Discard';
 }
 
-// targets: [{ repo, files }], one entry per repository.
+// targets: [{ repo, files }], one entry per repository. Staging only marks a conflict as resolved here.
 async function stage(targets) {
   for (const { repo, files } of targets) {
     log.info(`[changes] ${repoName(repo)}: stage ${files.length} files`);
@@ -52,55 +47,21 @@ async function stage(targets) {
   }
 }
 
-async function unstage(targets) {
-  for (const { repo, files } of targets) {
-    log.info(`[changes] ${repoName(repo)}: unstage ${files.length} files`);
-    await repo.revert(files.map((f) => absolute(repo, f)));
+// Every change of the repositories back to HEAD, with one confirmation.
+async function discardAll(repos) {
+  const targets = [];
+  for (const repo of repos) {
+    const { files } = await loadChanges(repo);
+    if (files.length) targets.push({ repo, files });
   }
-}
-
-// One confirmation for all the repositories.
-async function discard(targets) {
   const files = targets.flatMap((t) => t.files);
   if (!files.length || !(await confirmDiscard(files))) return;
-  for (const { repo, files: mine } of targets) {
-    log.info(`[changes] ${repoName(repo)}: discard ${mine.length} files`);
-    await repo.clean(mine.map((f) => absolute(repo, f)));
-  }
+  for (const { repo, files: mine } of targets) await discardWorktreeFiles(repo.rootUri.fsPath, mine.map((f) => f.path));
 }
 
-const groupTargets = (repos, group) => repos.map((repo) => ({ repo, files: groupFiles(repo, group) })).filter((t) => t.files.length);
-
-// One message, committed in every given repository with staged changes (WebStorm's multi-root commit).
-// Nothing staged anywhere: offer to stage everything, untracked files included, as the native smart commit does.
-async function commit(repos, message) {
-  if (!message.trim()) {
-    vscode.window.showWarningMessage('Enter a commit message.');
-    return false;
-  }
-  let targets = repos.filter((repo) => repo.state.indexChanges.length);
-  if (!targets.length) {
-    const unstaged = groupTargets(repos, 'unstaged');
-    if (!unstaged.length) {
-      vscode.window.showInformationMessage('There are no changes to commit.');
-      return false;
-    }
-    const answer = await vscode.window.showWarningMessage('There are no staged changes. Stage all your changes and commit them?', { modal: true }, 'Stage All and Commit');
-    if (answer !== 'Stage All and Commit') return false;
-    await stage(unstaged);
-    targets = unstaged.map((t) => t.repo);
-  }
-  for (const repo of targets) {
-    log.info(`[changes] ${repoName(repo)}: commit "${message.split('\n')[0]}"`);
-    await repo.commit(message);
-  }
-  for (const repo of repos) repo.inputBox.value = '';
-  return true;
-}
-
-// Context menus and inline buttons: ctx = { file, changeGroup, root } on a file row, { changeGroup } on a
-// section; reposOf(ctx) -> the repositories it acts on.
-function registerChangeCommands(context, reposOf) {
+// Context menus and inline buttons: ctx = { file, files, root } on a conflict's row, { changeGroup } on a section;
+// reposOf(ctx) -> the repositories it acts on.
+function registerChangeCommands(context, reposOf, refresh) {
   const run = (action, fn) => async (ctx) => {
     const repos = ctx ? reposOf(ctx) : [];
     if (!repos.length) return;
@@ -110,18 +71,15 @@ function registerChangeCommands(context, reposOf) {
       log.error(`[changes] ${repos.map(repoName).join(', ')}: ${action} failed:`, err);
       vscode.window.showErrorMessage(`${action} failed: ${errorText(err)}`);
     }
+    refresh();
   };
-  // ctx.files: a multi-selection of the row's group (workingTree.js), else the row's own file.
-  const one = (repos, ctx) => [{ repo: repos[0], files: ctx.files || [ctx.file] }];
   const actions = {
-    stage: (repos, ctx) => stage(one(repos, ctx)),
-    unstage: (repos, ctx) => unstage(one(repos, ctx)),
-    discard: (repos, ctx) => discard(one(repos, ctx)),
-    stageAll: (repos, ctx) => stage(groupTargets(repos, ctx.changeGroup)),
-    unstageAll: (repos) => unstage(groupTargets(repos, 'staged')),
-    discardAll: (repos) => discard(groupTargets(repos, 'unstaged')),
+    // ctx.files: a multi-selection (workingTree.js), else the row's own file.
+    stage: (repos, ctx) => stage([{ repo: repos[0], files: ctx.files || [ctx.file] }]),
+    stageAll: (repos) => stage(repos.map((repo) => ({ repo, files: mergeFiles(repo) })).filter((t) => t.files.length)),
+    discardAll,
   };
   context.subscriptions.push(...Object.entries(actions).map(([name, fn]) => vscode.commands.registerCommand(`gitWeave.changes.${name}`, run(name, fn))));
 }
 
-module.exports = { loadChanges, commit, confirmDiscard, registerChangeCommands };
+module.exports = { loadChanges, confirmDiscard, registerChangeCommands };

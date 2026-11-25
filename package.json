@@ -164,23 +164,11 @@
       },
       {
         "command": "gitWeave.changes.stage",
-        "title": "Stage Changes"
-      },
-      {
-        "command": "gitWeave.changes.unstage",
-        "title": "Unstage Changes"
-      },
-      {
-        "command": "gitWeave.changes.discard",
-        "title": "Discard Changes"
+        "title": "Mark as Resolved"
       },
       {
         "command": "gitWeave.changes.stageAll",
-        "title": "Stage All Changes"
-      },
-      {
-        "command": "gitWeave.changes.unstageAll",
-        "title": "Unstage All Changes"
+        "title": "Mark All as Resolved"
       },
       {
         "command": "gitWeave.changes.discardAll",
@@ -324,19 +312,7 @@
           "when": "false"
         },
         {
-          "command": "gitWeave.changes.unstage",
-          "when": "false"
-        },
-        {
-          "command": "gitWeave.changes.discard",
-          "when": "false"
-        },
-        {
           "command": "gitWeave.changes.stageAll",
-          "when": "false"
-        },
-        {
-          "command": "gitWeave.changes.unstageAll",
           "when": "false"
         },
         {
@@ -478,27 +454,12 @@
         },
         {
           "command": "gitWeave.changes.stage",
-          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup =~ /^(unstaged|merge)$/",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup == 'merge'",
           "group": "2_stage"
-        },
-        {
-          "command": "gitWeave.changes.unstage",
-          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup == 'staged'",
-          "group": "2_stage"
-        },
-        {
-          "command": "gitWeave.changes.discard",
-          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'file' && changeGroup == 'unstaged'",
-          "group": "9_delete"
         },
         {
           "command": "gitWeave.changes.stageAll",
-          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup =~ /^(unstaged|merge)$/",
-          "group": "1_stage"
-        },
-        {
-          "command": "gitWeave.changes.unstageAll",
-          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup == 'staged'",
+          "when": "webviewId == 'gitWeave.sidebar' && webviewSection == 'changes' && changeGroup == 'merge'",
           "group": "1_stage"
         },
         {

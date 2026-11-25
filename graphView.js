@@ -310,7 +310,7 @@ function registerGraphView(context, git, selection) {
   }, () => selection.refresh());
   // A section's "all" actions: every selected repository; a file's: its own.
   const reposOf = (ctx) => (ctx.root ? [own(ctx)].filter(Boolean) : selection.repos());
-  registerChangeCommands(context, reposOf);
+  registerChangeCommands(context, reposOf, () => selection.refresh());
   registerFetchCommand(context, reposOf);
   return graph;
 }

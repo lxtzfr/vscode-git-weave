@@ -86,44 +86,30 @@ async function findWorktree(repo, worktreePath) {
   return wt;
 }
 
-// Same rules as this window's commit (workingChanges.js), asking too when only a part is staged: the view does not
-// show which files of another worktree are. Returns whether it committed.
-async function commitWorktree(repo, worktreePath, message) {
+// The sidebar's Commit button (WebStorm's commit): one message, one commit per checkout with checked files.
+// targets: [{ repo, path: the checkout, paths: its checked files }]. Returns whether everything was committed.
+async function commitFiles(targets, message) {
   if (!message.trim()) {
     vscode.window.showWarningMessage('Enter a commit message.');
     return false;
   }
-  const wt = await findWorktree(repo, worktreePath);
-  if (!wt) return false;
-  const files = (await loadWorktreeChanges(wt.path)) || [];
-  const name = path.basename(wt.path);
-  if (!files.length) {
-    vscode.window.showInformationMessage(`There are no changes to commit in ${name}.`);
+  if (!targets.length) {
+    vscode.window.showWarningMessage('Check the files to commit.');
     return false;
   }
-  if (files.some((f) => f.status === '!')) {
-    vscode.window.showWarningMessage(`Resolve the conflicts of ${name} before committing.`);
-    return false;
+  for (const { repo, path: checkout, paths } of targets) {
+    const wt = await findWorktree(repo, checkout);
+    if (!wt) throw new Error(`${checkout} is not a worktree of ${repoName(repo)}`);
+    await commitWorktreeFiles(wt.path, message, paths);
   }
-  const staged = files.filter((f) => f.staged).length;
-  let stageAll = false;
-  if (files.some((f) => f.unstaged)) {
-    const all = 'Stage All and Commit';
-    const only = 'Commit Staged Only';
-    const question = staged ? `${name} has both staged and unstaged changes. What should be committed?` : `There are no staged changes in ${name}. Stage all its changes and commit them?`;
-    const answer = await vscode.window.showWarningMessage(question, { modal: true }, ...(staged ? [only, all] : [all]));
-    if (!answer) return false;
-    stageAll = answer === all;
-  }
-  await commitWorktreeFiles(wt.path, message, stageAll);
   return true;
 }
 
-// Another worktree's files back to HEAD.
+// Files of a checkout back to HEAD.
 async function discard(repo, worktreePath, files, refresh) {
   const wt = await findWorktree(repo, worktreePath);
   if (!wt) return;
-  if (!files.length || !(await confirmDiscard(files, path.basename(wt.path)))) return;
+  if (!files.length || !(await confirmDiscard(files, samePath(wt.path, repo.rootUri.fsPath) ? undefined : path.basename(wt.path)))) return;
   try {
     await discardWorktreeFiles(wt.path, files.map((f) => f.path));
   } catch (err) {
@@ -153,7 +139,8 @@ function registerWorktreeCommands(context, resolve, refresh) {
   // A file of another worktree (ctx.file.worktree) or of this window's WIP row in the graph (ctx.file.wip).
   const discardFile = (ctx) => {
     const item = ctx && ctx.file && (ctx.file.worktree || ctx.file.wip) && resolve(ctx);
-    return item && discard(item.repo, ctx.file.worktree || item.repo.rootUri.fsPath, [ctx.file], refresh);
+    // ctx.files: a multi-selection of the sidebar (workingTree.js).
+    return item && discard(item.repo, ctx.file.worktree || item.repo.rootUri.fsPath, ctx.files || [ctx.file], refresh);
   };
   context.subscriptions.push(
     ...Object.entries(commands).map(([name, fn]) => vscode.commands.registerCommand(`gitWeave.worktrees.${name}`, withItem(fn))),
@@ -162,4 +149,4 @@ function registerWorktreeCommands(context, resolve, refresh) {
   );
 }
 
-module.exports = { loadWorktrees, commitWorktree, registerWorktreeCommands, samePath };
+module.exports = { loadWorktrees, commitFiles, registerWorktreeCommands, samePath };

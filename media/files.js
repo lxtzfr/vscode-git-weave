@@ -15,6 +15,26 @@
     '!': ['conflict', 'Conflict'],
   };
 
+  // A commit checkbox over the files `keys` of `checked` (a Set): ticked when all are, mixed when some are.
+  function checkbox(keys, checked, onToggle) {
+    const box = el('input', 'check');
+    box.type = 'checkbox';
+    const n = keys.filter((k) => checked.has(k)).length;
+    box.checked = n > 0 && n === keys.length;
+    box.indeterminate = n > 0 && n < keys.length;
+    box.disabled = !keys.length;
+    box.addEventListener('click', (e) => {
+      e.stopPropagation(); // not the row's own click
+      for (const k of keys) {
+        if (n === keys.length) checked.delete(k);
+        else checked.add(k);
+      }
+      onToggle();
+    });
+    box.addEventListener('dblclick', (e) => e.stopPropagation());
+    return box;
+  }
+
   // file: { status, path, oldPath }; folder: show its folder as description (flat lists);
   // context: extra keys for the webview/context menus; actions: hover buttons.
   function row(file, { depth = 0, selected, folder, context, actions = [], onClick }) {
@@ -40,14 +60,20 @@
   }
 
   // Files as a folder tree, or as a list sorted by sortKey (each file's folder as its description).
-  // rowOf(file, depth, folder) -> its row; key: the folders' prefix in `collapsed`, so each list collapses its own;
+  // rowOf(file, depth, folder) -> its row; decorateFolder(row, its files): adds to a folder row; key: the folders' prefix in `collapsed`, so each list collapses its own;
   // onToggle(): re-render after a folder opened or closed.
-  function rows(list, { asTree, collapsed, key, depth = 0, onToggle, rowOf, sortKey = (f) => f.path }) {
+  function rows(list, { asTree, collapsed, key, depth = 0, onToggle, rowOf, sortKey = (f) => f.path, decorateFolder }) {
     if (!asTree) return [...list].sort((a, b) => sortKey(a).localeCompare(sortKey(b))).map((file) => rowOf(file, depth, true));
     return tree
       .flatten(tree.build(list, (f) => f.path), collapsed, (f) => f.path, depth, key)
-      .map((r) => (r.folder ? tree.folderRow(r, collapsed, onToggle) : rowOf(r.item, r.depth, false)));
+      .map((r) => {
+        if (!r.folder) return rowOf(r.item, r.depth, false);
+        const row = tree.folderRow(r, collapsed, onToggle);
+        const dir = `${key ? r.path.substring(key.length + 1) : r.path}/`;
+        if (decorateFolder) decorateFolder(row, list.filter((file) => file.path.startsWith(dir)));
+        return row;
+      });
   }
 
-  window.files = { row, rows, layoutButton };
+  window.files = { row, rows, layoutButton, checkbox };
 })();

@@ -2,10 +2,10 @@ const vscode = require('vscode');
 const { log } = require('./logger');
 const { repoName, sortedRepositories, errorText, withRoot } = require('./gitRepos');
 const { loadRefs } = require('./refs');
-const { loadWorktrees, commitWorktree, samePath } = require('./worktrees');
+const { loadWorktrees, commitFiles, samePath } = require('./worktrees');
 const { loadStashes } = require('./stashes');
 const { checkoutRef, RefType } = require('./branches');
-const { loadChanges, commit } = require('./workingChanges');
+const { loadChanges } = require('./workingChanges');
 const { webviewOptions, webviewHtml, runWebviewCommand } = require('./webviewHtml');
 
 const VIEW_ID = 'gitWeave.sidebar';
@@ -94,7 +94,7 @@ class SidebarView {
 
   // One repository's sections, every item tagged with its root (the rows' menus act on it).
   async loadRepo(repo) {
-    const [refs, worktrees, stashes] = await Promise.all([loadRefs(repo), loadWorktrees(repo), loadStashes(repo)]);
+    const [refs, worktrees, stashes, changes] = await Promise.all([loadRefs(repo), loadWorktrees(repo), loadStashes(repo), loadChanges(repo)]);
     return {
       root: repo.rootUri.fsPath,
       name: repoName(repo),
@@ -103,7 +103,7 @@ class SidebarView {
       refs: withRoot(repo, refs),
       worktrees: withRoot(repo, worktrees.map((wt) => ({ ...wt, unmerged: refs.local.some((b) => b.name === wt.branch && b.unmerged) }))),
       stashes: withRoot(repo, stashes),
-      changes: withRoot(repo, loadChanges(repo)),
+      changes: withRoot(repo, changes),
     };
   }
 
@@ -128,7 +128,7 @@ class SidebarView {
         return;
       }
       case 'commit':
-        return this.commit(msg.text, msg.worktree);
+        return this.commit(msg.text, msg.targets);
       case 'command':
         return runWebviewCommand(msg, (m) => this.post(m), 'sidebar');
       case 'checkout': {
@@ -140,21 +140,19 @@ class SidebarView {
     }
   }
 
-  // worktree: { root, path }, another worktree of a repository; none: the checked repositories.
-  async commit(text, worktree) {
-    const repos = worktree ? [this.selection.byRoot(worktree.root)].filter(Boolean) : this.selection.repos();
+  // targets: [{ root, path, paths }], the checked files of each checkout of a repository.
+  async commit(text, targets) {
     let ok = false;
     try {
-      if (worktree) ok = !!repos.length && (await commitWorktree(repos[0], worktree.path, text));
-      else ok = !!repos.length && (await commit(repos, text));
-      if (ok && worktree) {
-        for (const repo of this.selection.repos()) repo.inputBox.value = '';
-        this.selection.refresh(); // another worktree's files are not watched
-      }
+      const mine = targets.map((t) => ({ ...t, repo: this.selection.byRoot(t.root) })).filter((t) => t.repo);
+      ok = await commitFiles(mine, text);
+      if (ok) for (const repo of this.selection.repos()) repo.inputBox.value = '';
     } catch (err) {
-      log.error(`[sidebar] ${worktree ? worktree.path : repos.map(repoName).join(', ')}: commit failed:`, err);
+      log.error('[sidebar] commit failed:', err);
       vscode.window.showErrorMessage(`Commit failed: ${errorText(err)}`);
     }
+    // Even after a failure: an earlier checkout may be committed, and other worktrees are not watched.
+    this.selection.refresh();
     this.post({ type: 'committed', ok });
   }
 

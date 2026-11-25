@@ -10,9 +10,10 @@ JavaScript, no build step.
   `git.repositoryScanMaxDepth`), without changing any setting. Source Control lists them too.
 - **Git Weave** in the activity bar, a webview:
   - repository checkboxes: several repositories shown together;
-  - commit box (Ctrl+Enter), one message committed in every checked repository;
-  - Merge / Staged / Changes: diff on click, stage, unstage, discard; other worktrees' changes under
-    **repository (worktree)**, each committed with its own button;
+  - Changes, as in WebStorm (no staging area): a checkbox per file, folder and repository; diff on click, discard;
+    other worktrees' changes under **repository (worktree)**;
+  - commit box (Ctrl+Enter): the checked files committed with one message, one commit per repository or worktree;
+  - Merge Changes: the conflicts, marked as resolved once fixed;
   - Local and Remote branches, Worktrees, Stashes, Tags, with their actions on hover and right-click;
   - an orange "waiting to be merged" icon on the branches (and worktrees) not merged into the default branch (`origin/HEAD`, else
     `main` / `master`); a squash or rebase merge counts as not merged.
