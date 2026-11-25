@@ -253,12 +253,21 @@ body {
   flex: none;
   max-height: 45%;
   overflow: auto;
-  padding: 8px 10px;
   border-top: 1px solid var(--vscode-panel-border, var(--vscode-widget-border, transparent));
 }
 
 #details:empty {
   display: none;
+}
+
+#details .tree-row.section {
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+}
+
+.details-body {
+  padding: 4px 10px 8px;
 }
 
 .pane-title {

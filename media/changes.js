@@ -1,5 +1,5 @@
 // Right pane of the graph webview (WebStorm's Git log): the selected commits' files as a folder tree,
-// then their details. A click on a file opens its diff.
+// then their foldable details. A click on a file opens its diff.
 (function () {
   const { el, codicon, repoColor, actionButton } = window.dom;
   const { tree, files: fileRows } = window;
@@ -10,11 +10,13 @@
   let current; // { rows, files }
   let selectedPath;
   let post;
-  let layout; // { asTree, set(asTree) }: the tree / list choice, saved by the graph's state
+  let prefs; // { state, save() }: the graph's saved state (filesAsTree, detailsCollapsed)
+  let shownDetails = []; // renderDetails' arguments, to redraw on fold / unfold
+  const DETAILS = 'Commit details';
 
-  function init(postMessage, layoutState) {
+  function init(postMessage, savedState) {
     post = postMessage;
-    layout = layoutState;
+    prefs = savedState;
     clear();
   }
 
@@ -44,14 +46,16 @@
     const { files, rows, repos } = current;
     const commits = rows.length > 1 ? ` in ${rows.length} commits` : '';
     const title = el('div', 'pane-title');
-    const toggle = fileRows.layoutButton(layout.asTree, () => {
-      layout.set(!layout.asTree);
+    const asTree = prefs.state.filesAsTree !== false;
+    const toggle = fileRows.layoutButton(asTree, () => {
+      prefs.state.filesAsTree = !asTree;
+      prefs.save();
       renderFiles();
     });
     title.append(el('span', 'name', `${files.length} file${files.length === 1 ? '' : 's'} changed${commits}`), toggle);
     const list = el('div', 'tree');
     const layoutOf = { collapsed, onToggle: renderFiles, rowOf: fileRow };
-    if (layout.asTree) {
+    if (asTree) {
       // One tree per repository, under its own row (a lone top folder is not merged into the repository's).
       for (const repo of repos.filter((r) => files.some((f) => f.repoName === r.name))) {
         const folder = tree.folderRow({ label: repo.name, path: repo.name, depth: 0 }, collapsed, renderFiles, ['repo', 'repo']);
@@ -89,10 +93,27 @@
     });
   }
 
+  // A header folding the details away, leaving the room to the files; the choice is kept across commits.
   function renderDetails(rows, body) {
-    if (rows.length > 1) return renderList(rows);
+    shownDetails = [rows, body];
+    const closed = new Set(prefs.state.detailsCollapsed ? [DETAILS] : []);
+    const onToggle = () => {
+      prefs.state.detailsCollapsed = closed.has(DETAILS);
+      prefs.save();
+      renderDetails(...shownDetails);
+    };
+    const header = tree.folderRow({ label: DETAILS, path: DETAILS, depth: 0 }, closed, onToggle, []);
+    header.classList.add('section');
+    if (closed.has(DETAILS)) return detailsEl.replaceChildren(header);
+    const content = el('div', 'details-body');
+    content.append(...detailsOf(rows, body));
+    detailsEl.replaceChildren(header, content);
+  }
+
+  function detailsOf(rows, body) {
+    if (rows.length > 1) return listOf(rows);
     const [row] = rows;
-    if (row.wip) return detailsEl.replaceChildren(el('div', 'message', wipLabel(row)));
+    if (row.wip) return [el('div', 'message', wipLabel(row))];
     const date = new Date(row.time * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
     const meta = el('div', 'meta');
     meta.append(
@@ -101,11 +122,11 @@
       line('git-commit', row.hash),
       ...(row.parents.length ? [line(row.parents.length > 1 ? 'git-merge' : 'arrow-down', row.parents.map((p) => p.substring(0, 7)).join(', '))] : [])
     );
-    detailsEl.replaceChildren(el('div', 'message', body || row.subject), meta);
+    return [el('div', 'message', body || row.subject), meta];
   }
 
   // Several commits: one line each, as in WebStorm.
-  function renderList(rows) {
+  function listOf(rows) {
     const list = el('div', 'meta');
     for (const row of rows) {
       const div = line(row.wip ? 'circle-outline' : 'git-commit', row.wip ? wipLabel(row) : `${row.hash.substring(0, 7)}  ${row.subject}`);
@@ -114,7 +135,7 @@ ${row.author} <${row.email}>
 ${row.subject}`;
       list.append(div);
     }
-    detailsEl.replaceChildren(el('div', 'message', `${rows.length} commits selected`), list);
+    return [el('div', 'message', `${rows.length} commits selected`), list];
   }
 
   const wipLabel = (row) => (row.worktree ? `Uncommitted changes in ${row.worktreeName} (read-only)` : 'Uncommitted changes');

@@ -17,7 +17,7 @@ JavaScript, no build step.
     `main` / `master`); a squash or rebase merge counts as not merged.
 - **Graph** in an editor tab (the **Git Weave** status bar button toggles it):
   - colored lanes, branch and tag pills, the checked repositories merged by date;
-  - one or several commits selected: their files on the right, diffs open in the first editor group.
+  - one or several commits selected: their files and foldable details on the right, diffs open in the first editor group.
 - **Window title** (opt-in, `gitWeave.windowTitle.enabled`): the workspace name for a `.code-workspace`, else the
   git remote path.
 
