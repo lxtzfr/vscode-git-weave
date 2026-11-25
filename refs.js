@@ -45,7 +45,7 @@ async function loadUnmerged(repo) {
 
 // Branches and tags of a repository in one git call (the vscode.git API needs one per kind and has
 // no ahead / behind on lists). ref = { name, type, commit, upstream: { remote, name }, ahead, behind,
-// gone, current, remote, unmerged }, commit = the peeled commit for an annotated tag.
+// gone, current, remote, unmerged, unpublished }, commit = the peeled commit for an annotated tag.
 async function loadRefs(repo) {
   const remoteNames = (repo.state.remotes || []).map((r) => r.name);
   const splitRemote = (short) => {
@@ -61,12 +61,15 @@ async function loadRefs(repo) {
     }),
   ]);
   const refs = { local: [], remote: [], tags: [] };
+  const published = new Set(out.split('\n').map((line) => line.split(FIELD)[0]));
   for (const line of out.split('\n').filter(Boolean)) {
     const [full, object, peeled, upstream, track, head] = line.split(FIELD);
     const commit = peeled || object;
     if (full.startsWith('refs/heads/')) {
       const name = full.substring(11);
-      refs.local.push({ name, type: RefType.Head, commit, upstream: upstream ? splitRemote(upstream) : undefined, ...parseTrack(track), current: head === '*', unmerged: unmerged.has(full) });
+      // No upstream and no remote branch of its name (a push without -u sets none).
+      const unpublished = !upstream && remoteNames.length > 0 && !remoteNames.some((r) => published.has(`refs/remotes/${r}/${name}`));
+      refs.local.push({ name, unpublished, type: RefType.Head, commit, upstream: upstream ? splitRemote(upstream) : undefined, ...parseTrack(track), current: head === '*', unmerged: unmerged.has(full) });
     } else if (full.startsWith('refs/remotes/')) {
       const name = full.substring(13);
       if (name.endsWith('/HEAD')) continue;

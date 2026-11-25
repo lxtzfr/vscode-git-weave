@@ -33,6 +33,7 @@
     if (ref.gone) div.append(el('span', 'description', track));
     else if (track) {
       const counts = el('span', 'description track');
+      if (ref.unpublished) counts.append(codicon('arrow-up')); // no count: nothing to compare with
       if (ref.ahead) counts.append(codicon('arrow-up'), String(ref.ahead));
       if (ref.behind) counts.append(codicon('arrow-down'), String(ref.behind));
       div.append(counts);
@@ -56,6 +57,7 @@
   // "↑1 ↓2" against the upstream, as the status bar shows it (the row draws it with arrow icons; this is the tooltip)
   function trackOf(ref) {
     if (ref.gone) return 'upstream gone';
+    if (ref.unpublished) return 'never pushed';
     return [ref.ahead ? `↑${ref.ahead}` : '', ref.behind ? `↓${ref.behind}` : ''].filter(Boolean).join(' ');
   }
 
