@@ -68,7 +68,7 @@ class GraphPanel {
     if (msg.type === 'showStash') msg = { ...msg, stash: { ...msg.stash, id: rowId(msg.stash.root, msg.stash.hash) } };
     if (this.panel) {
       this.panel.reveal(undefined, true);
-      return msg.type === 'reveal' ? this.reveal(msg.root, msg.hash) : this.post(msg);
+      return msg.type === 'reveal' ? this.reveal(msg.root, msg.hash, msg.branch) : this.post(msg);
     }
     this.pending = msg;
     await this.open();
@@ -218,7 +218,7 @@ class GraphPanel {
 
   // A branch or worktree clicked in the sidebar: load the pages up to its commit, then select it. Its
   // position in its own repository is a lower bound of the rows to load when several are merged.
-  async reveal(root, hash) {
+  async reveal(root, hash, branch) {
     const repo = this.selection.byRoot(root);
     if (!repo) return;
     const id = rowId(root, hash);
@@ -236,7 +236,7 @@ class GraphPanel {
       }
       if (!this.ids.has(id)) return log.warn(`[graph] ${hash} not loaded`);
     }
-    this.post({ type: 'reveal', id });
+    this.post({ type: 'reveal', id, root, branch });
   }
 
   // A sidebar row clicked again: clear the graph's selection (the graph is not opened for that).

@@ -30,7 +30,7 @@
       renderTree();
       post({ type: 'command', command, ctx, key });
     },
-    reveal: (hash, root) => post({ type: 'reveal', hash, root }),
+    reveal: (hash, root, branch) => post({ type: 'reveal', hash, root, branch }),
     stash: (stash) => post({ type: 'stash', stash }),
     isSelected: (key) => key === state.selectedKey,
     // A repository's HEAD commit: its refs' icons use HEAD's color, as the graph's pills there.

@@ -103,7 +103,7 @@ class SidebarView {
       case 'selectRepos':
         return this.selection.set(msg.roots);
       case 'reveal':
-        return this.graph.show({ type: 'reveal', root: msg.root, hash: msg.hash });
+        return this.graph.show({ type: 'reveal', root: msg.root, hash: msg.hash, branch: msg.branch });
       case 'deselect':
         return this.graph.deselect();
       case 'stash':

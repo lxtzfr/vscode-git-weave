@@ -1,4 +1,4 @@
-// Branch and tag rows of the sidebar view (sidebar.js). Click: select the ref's commit in the graph;
+// Branch and tag rows of the sidebar view (sidebar.js). Click: select the row of the ref's pill in the graph;
 // double-click: checkout; right-click: the branch actions (package.json webview/context).
 (function () {
   const { el, codicon, menuContext, actionButton, busyKey, commitColor } = window.dom;
@@ -48,7 +48,7 @@
     }
     div.title = [ref.name, ref.unmerged ? 'not merged into the default branch' : '', ref.upstream ? `→ ${ref.upstream.remote}/${ref.upstream.name}` : '', track, ref.commit.substring(0, 7)].filter(Boolean).join('  ');
     menuContext(div, refContext(ref));
-    div.addEventListener('click', (e) => api.toggle(e, key, () => api.reveal(ref.commit, ref.root)));
+    div.addEventListener('click', (e) => api.toggle(e, key, () => api.reveal(ref.commit, ref.root, ref.type === RefType.Head ? ref.name : undefined)));
     if (ref.type !== RefType.Tag) div.addEventListener('dblclick', () => api.post({ type: 'checkout', ref }));
     return div;
   }

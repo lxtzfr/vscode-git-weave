@@ -333,14 +333,16 @@
     requestChanges();
   }
 
-  // A ref's commit, from the sidebar view: selected and scrolled to the middle (the extension loaded
-  // the pages up to it first).
-  function reveal(id) {
-    const index = indexOf(id);
+  // A ref clicked in the sidebar view: its row selected and scrolled to the middle (the extension loaded the
+  // pages up to its commit first). A local branch's pill can sit on a WIP row above that commit
+  // (graphData.js moveBranchPillsToWip): the pill's row wins.
+  function reveal({ id, root, branch }) {
+    const pillRow = branch ? rows.findIndex((r) => r.root === root && r.refs.some((p) => p.local && p.name === branch)) : -1;
+    const index = pillRow === -1 ? indexOf(id) : pillRow;
     if (index === -1) return;
     scroller.scrollTop = Math.max(0, index * ROW_H - scroller.clientHeight / 2);
     state.cursor = undefined;
-    setSelection([id], id);
+    setSelection([rows[index].id], rows[index].id);
   }
 
   const indexOf = (id) => (id === undefined ? -1 : rows.findIndex((r) => r.id === id));
@@ -429,7 +431,7 @@
       state.cursor = undefined;
       setSelection([], undefined);
     } else if (msg.type === 'reveal') {
-      reveal(msg.id);
+      reveal(msg);
     } else if (msg.type === 'showStash') {
       showStash(msg.stash);
     } else if (msg.type === 'commit') {
