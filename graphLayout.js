@@ -2,8 +2,9 @@
 // in its upper half (coming from the row above) and lower half (going below).
 // Lanes never shift sideways once given, so a branch stays on one column down its whole history;
 // a node takes the leftmost lane waiting for it, the others merge into it from the right. Each repository's
-// trunk (its default branch's first-parent chain) owns a lane from the top, left of every other: a branch
-// newer than the trunk's tip still leaves it to the right instead of taking its column.
+// trunk (its default branch's first-parent chain) owns a lane from the repository's first row down to its root, the
+// leftmost free one then: a branch newer than the trunk's tip still leaves it to the right instead of taking its
+// column, and repositories shown one after another all keep their trunk on the left.
 // Colors follow branches, not columns (as the native SCM graph): a new lane takes the next color,
 // a first parent keeps its child's; HEAD's first-parent chain gets REF_COLOR.
 
@@ -14,14 +15,15 @@ const REF_COLOR = 'ref';
 // commits: display order (children before parents), { hash, parents: [hash], wip, worktree, head, unpushed, trunk }
 // (head: a repository's HEAD; unpushed: on no remote branch; its lines to its parents are dashed, as the WIP row's;
 // worktree: the WIP row of another worktree, in its branch's color; colorKey: the commit's own hash when it carries
-// a branch (its color follows it, as the sidebar's icons of those refs); trunk: its repository's key when on its trunk;
-// several repositories can share one graph).
+// a branch (its color follows it, as the sidebar's icons of those refs); repo: its repository's key; trunk: that key
+// when on its trunk; several repositories can share one graph).
 // Returns one row per commit: { col, color, width, up: [piece], down: [piece] },
 // piece = { x1, x2, color, dashed } in lane units: x1 at the half's top, x2 at its bottom.
 function layoutGraph(commits) {
-  const trunks = [...new Set(commits.map((c) => c.trunk).filter(Boolean))];
-  // lane index -> { hash it waits for, color }, null = free; a trunk's lane is never free (no hash: nothing drawn).
-  const lanes = trunks.map(() => ({}));
+  const trunks = new Set(commits.map((c) => c.trunk).filter(Boolean));
+  const trunkLanes = new Map(); // repository key -> its trunk's lane
+  // lane index -> { hash it waits for, color }, null = free; a trunk's reserved lane: {} (no hash: nothing drawn).
+  const lanes = [];
   const rows = [];
   let pending = []; // { from, lane, hash, color }: lines leaving the previous row
   let nextColor = 0;
@@ -45,9 +47,15 @@ function layoutGraph(commits) {
   const laneOf = (hash) => lanes.findIndex((l) => l && l.hash === hash);
 
   for (let r = 0; r < commits.length; r++) {
-    const { hash, parents, wip, worktree, head, trunk, colorKey } = commits[r];
+    const { hash, parents, wip, worktree, head, repo, trunk, colorKey } = commits[r];
     const dashed = commits[r].unpushed || wip; // uncommitted changes are not pushed either
-    let col = trunk ? trunks.indexOf(trunk) : laneOf(hash);
+    if (trunks.has(repo) && !trunkLanes.has(repo)) {
+      const free = lanes.indexOf(null);
+      const lane = free === -1 ? lanes.length : free;
+      lanes[lane] = {};
+      trunkLanes.set(repo, lane);
+    }
+    let col = trunk ? trunkLanes.get(trunk) : laneOf(hash);
     let color;
     if (trunk) {
       color = lanes[col].hash === hash ? lanes[col].color : newColor(); // its tip: nothing above in its lane
@@ -78,7 +86,7 @@ function layoutGraph(commits) {
 
     // First parent keeps the node's lane, even when another lane already waits for it: both
     // lanes then join at the parent, which draws the fork point.
-    lanes[col] = parents.length ? { hash: parents[0], color, dashed } : trunk ? {} : null;
+    lanes[col] = parents.length ? { hash: parents[0], color, dashed } : null;
     const fromNode = new Set([col]);
     const extra = []; // other parents already awaited by a lane: line from the node into that lane
     for (const parent of parents.slice(1)) {
