@@ -1,4 +1,5 @@
 const { runGit } = require('./gitRepos');
+const { log } = require('./logger');
 const { layoutGraph } = require('./graphLayout');
 const { loadWorktrees, samePath } = require('./worktrees');
 
@@ -70,7 +71,23 @@ async function trunkHashes(repo) {
   const patterns = name ? [`refs/heads/${name}`, originHead] : ['refs/heads/main', 'refs/heads/master', 'refs/remotes/origin/main', 'refs/remotes/origin/master'];
   const refs = (await runGit(repo, ['for-each-ref', '--format=%(refname)', ...patterns])).split('\n').filter(Boolean);
   if (!refs.length) return new Set();
-  return new Set((await runGit(repo, ['rev-list', '--first-parent', ...refs])).split('\n').filter(Boolean));
+  const ref = await trunkRef(repo, refs);
+  return new Set((await runGit(repo, ['rev-list', '--first-parent', ref])).split('\n').filter(Boolean));
+}
+
+const isAncestor = (repo, a, b) => runGit(repo, ['merge-base', '--is-ancestor', a, b]).then(() => true, () => false);
+
+// One chain only: copies that diverged (an amended or rebased local branch) would all take the trunk's lane, drawn
+// as one line through both tips. The copy containing the others (local only ahead), else the remote one: the local
+// commits then branch off it.
+async function trunkRef(repo, refs) {
+  for (const ref of refs) {
+    const others = refs.filter((r) => r !== ref);
+    if ((await Promise.all(others.map((o) => isAncestor(repo, o, ref)))).every(Boolean)) return ref;
+  }
+  const ref = refs.find((r) => r.startsWith('refs/remotes/')) || refs[0];
+  log.info(`Graph: ${refs.join(', ')} diverged, trunk on ${ref}`);
+  return ref;
 }
 
 // A WIP row shows its branch (where its changes will be committed; none when detached): the local branch's part of
